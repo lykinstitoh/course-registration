@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Student;
 
-use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\FeeStructure;
@@ -32,15 +31,18 @@ class PaymentController extends Controller
                 ->get()
             : collect();
 
-        return view('student.payments.index', compact('payments', 'fees'));
+        $activeMethods = \App\Models\PaymentMethod::where('is_active', true)->get();
+
+        return view('student.payments.index', compact('payments', 'fees', 'activeMethods'));
     }
 
     public function initiate(Request $request)
     {
+        $activeMethods = \App\Models\PaymentMethod::where('is_active', true)->pluck('code')->toArray();
         $data = $request->validate([
             'fee_structure_id' => ['required', 'exists:fee_structures,id'],
-            'method' => ['required', 'in:mpesa_stk,bank_transfer'],
-            'phone' => ['required_if:method,mpesa_stk', 'nullable', 'string', 'max:20'],
+            'method' => ['required', \Illuminate\Validation\Rule::in($activeMethods)],
+            'phone' => ['required_if:method,mpesa', 'nullable', 'string', 'max:20'],
         ]);
 
         $profile = Auth::user()->studentProfile;
@@ -55,11 +57,11 @@ class PaymentController extends Controller
             'student_profile_id' => $profile->id,
             'fee_structure_id' => $fee->id,
             'amount' => $fee->amount,
-            'method' => PaymentMethod::from($data['method']),
+            'method' => $data['method'],
             'status' => PaymentStatus::Pending,
         ]);
 
-        if ($data['method'] === 'mpesa_stk') {
+        if ($data['method'] === 'mpesa') {
             $result = $this->mpesa->initiateStkPush($payment, $data['phone']);
 
             return back()->with($result['success'] ? 'success' : 'error', $result['message']);

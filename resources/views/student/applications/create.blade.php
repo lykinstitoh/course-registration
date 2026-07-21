@@ -8,18 +8,25 @@
         <h2>Programme Application</h2>
         <form method="POST" action="{{ route('student.applications.store') }}">
             @csrf
+            
+            <h3 class="mt-4">Personal & Contact Information</h3>
             <div class="grid-2">
-                <div class="form-group"><label>Programme</label>
-                    <select name="programme_id" required>
-                        <option value="">Select programme</option>
-                        @foreach($programmes as $p)<option value="{{ $p->id }}">{{ $p->name }} (Min KCSE: {{ $p->minimum_kcse_grade }})</option>@endforeach
+                <div class="form-group"><label>Date of Birth</label><input type="date" name="date_of_birth" value="{{ old('date_of_birth') }}"></div>
+                <div class="form-group"><label>Gender</label>
+                    <select name="gender">
+                        <option value="">Select gender</option>
+                        <option value="Male" @selected(old('gender') === 'Male')>Male</option>
+                        <option value="Female" @selected(old('gender') === 'Female')>Female</option>
+                        <option value="Other" @selected(old('gender') === 'Other')>Other</option>
                     </select>
                 </div>
-                <div class="form-group"><label>Intake</label>
-                    <select name="intake_id" required>
-                        @foreach($intakes as $i)<option value="{{ $i->id }}">{{ $i->name }}</option>@endforeach
-                    </select>
-                </div>
+                <div class="form-group"><label>Next of Kin Name</label><input type="text" name="next_of_kin_name" value="{{ old('next_of_kin_name') }}"></div>
+                <div class="form-group"><label>Next of Kin Phone</label><input type="text" name="next_of_kin_phone" value="{{ old('next_of_kin_phone') }}"></div>
+                <div class="form-group"><label>Employment Details (Optional)</label><input type="text" name="employment_details" value="{{ old('employment_details') }}" placeholder="Company, Role, etc."></div>
+            </div>
+
+            <h3 class="mt-4">Academic Qualifications</h3>
+            <div class="grid-2">
                 <div class="form-group"><label>KCSE Mean Grade (points)</label><input type="number" step="0.01" name="kcse_mean_grade" value="{{ old('kcse_mean_grade') }}" required></div>
                 <div class="form-group"><label>KCSE Index Number</label><input type="text" name="kcse_index_number" value="{{ old('kcse_index_number') }}" inputmode="numeric" pattern="[0-9]*" maxlength="30" title="Enter numbers only" required></div>
                 <div class="form-group"><label>KCSE Year</label>
@@ -36,7 +43,33 @@
                     </select>
                 </div>
             </div>
-            <button class="btn btn-accent" type="submit">Submit Application</button>
+
+            <h3 class="mt-4">Course & Campus Selection</h3>
+            <div class="grid-2">
+                <div class="form-group"><label>Programme</label>
+                    <select name="programme_id" required>
+                        <option value="">Select programme</option>
+                        @foreach($programmes as $p)<option value="{{ $p->id }}">{{ $p->name }} (Min KCSE: {{ $p->minimum_kcse_grade }})</option>@endforeach
+                    </select>
+                </div>
+                <div class="form-group"><label>Intake</label>
+                    <select name="intake_id" required>
+                        <option value="">Select intake</option>
+                        @foreach($intakes as $i)<option value="{{ $i->id }}">{{ $i->name }}</option>@endforeach
+                    </select>
+                </div>
+                <div class="form-group"><label>Campus</label>
+                    <select name="campus_id">
+                        <option value="">Select campus</option>
+                        @foreach($campuses as $campus)<option value="{{ $campus->id }}">{{ $campus->name }}</option>@endforeach
+                    </select>
+                </div>
+            </div>
+
+            <div class="mt-4" style="display: flex; gap: 10px;">
+                <button class="btn btn-secondary" type="submit" name="action" value="draft">Save as Draft</button>
+                <button class="btn btn-accent" type="submit" name="action" value="submit">Submit Application</button>
+            </div>
         </form>
     </div>
 </div>

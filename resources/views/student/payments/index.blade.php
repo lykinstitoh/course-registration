@@ -8,7 +8,7 @@
         <h1 style="color:var(--primary);margin-bottom:1rem;">Fee Payments</h1>
         @if($fees->isNotEmpty())
             <div class="card">
-                <h3>Pay Fees (M-Pesa STK Push / Bank Transfer)</h3>
+                <h3>Pay Fees</h3>
                 @foreach($fees as $fee)
                     <form method="POST" action="{{ route('student.payments.initiate') }}" style="border-bottom:1px solid var(--border);padding:1rem 0;">
                         @csrf
@@ -16,8 +16,9 @@
                         <p><strong>{{ $fee->description }}</strong> — KES {{ number_format($fee->amount) }}</p>
                         <div class="grid-2" style="margin-top:.5rem;">
                             <select name="method" required>
-                                <option value="mpesa_stk">M-Pesa STK Push</option>
-                                <option value="bank_transfer">Bank Transfer</option>
+                                @foreach($activeMethods as $method)
+                                    <option value="{{ $method->code }}">{{ $method->name }}</option>
+                                @endforeach
                             </select>
                             <input type="text" name="phone" placeholder="M-Pesa phone (07XX)">
                         </div>
@@ -35,7 +36,7 @@
                         <tr>
                             <td>{{ $payment->reference }}</td>
                             <td>KES {{ number_format($payment->amount) }}</td>
-                            <td>{{ $payment->method->label() }}</td>
+                            <td>{{ str_replace('_', ' ', Str::title($payment->method)) }}</td>
                             <td>{{ $payment->status->label() }}</td>
                             <td>{{ $payment->mpesa_receipt ?? '—' }}</td>
                         </tr>

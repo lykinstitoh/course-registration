@@ -49,37 +49,66 @@ class ApplicationController extends Controller
         $intakes = Intake::where('is_active', true)
             ->where('application_closes', '>=', now())
             ->get();
+        $campuses = \App\Models\Campus::where('is_active', true)->orderBy('name')->get();
 
         $latestKcseYear = now()->month >= 11 ? now()->year : now()->year - 1;
         $kcseYears = range($latestKcseYear, 1989);
         $counties = self::KENYAN_COUNTIES;
 
-        return view('student.applications.create', compact('programmes', 'intakes', 'kcseYears', 'counties'));
+        return view('student.applications.create', compact('programmes', 'intakes', 'campuses', 'kcseYears', 'counties'));
     }
 
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'programme_id' => ['required', 'exists:programmes,id'],
-            'intake_id' => ['required', 'exists:intakes,id'],
-            'kcse_mean_grade' => ['required', 'numeric', 'min:1', 'max:12'],
-            'kcse_index_number' => ['required', 'string', 'max:30', 'regex:/^\d+$/'],
-            'kcse_year' => ['required', 'integer', Rule::in(range(now()->month >= 11 ? now()->year : now()->year - 1, 1989))],
-            'national_id' => ['required', 'string', 'max:20', 'regex:/^\d+$/'],
-            'county' => ['required', Rule::in(self::KENYAN_COUNTIES)],
-        ]);
+        $isDraft = $request->input('action') === 'draft';
+
+        $rules = [
+            'programme_id' => [$isDraft ? 'nullable' : 'required', 'exists:programmes,id'],
+            'intake_id' => [$isDraft ? 'nullable' : 'required', 'exists:intakes,id'],
+            'campus_id' => ['nullable', 'exists:campuses,id'],
+            'kcse_mean_grade' => [$isDraft ? 'nullable' : 'required', 'numeric', 'min:1', 'max:12'],
+            'kcse_index_number' => [$isDraft ? 'nullable' : 'required', 'string', 'max:30', 'regex:/^\d+$/'],
+            'kcse_year' => [$isDraft ? 'nullable' : 'required', 'integer', Rule::in(range(now()->month >= 11 ? now()->year : now()->year - 1, 1989))],
+            'national_id' => [$isDraft ? 'nullable' : 'required', 'string', 'max:20', 'regex:/^\d+$/'],
+            'county' => [$isDraft ? 'nullable' : 'required', Rule::in(self::KENYAN_COUNTIES)],
+            'date_of_birth' => ['nullable', 'date'],
+            'gender' => ['nullable', 'string', 'in:Male,Female,Other'],
+            'next_of_kin_name' => ['nullable', 'string', 'max:255'],
+            'next_of_kin_phone' => ['nullable', 'string', 'max:20'],
+            'employment_details' => ['nullable', 'string'],
+        ];
+
+        $data = $request->validate($rules);
 
         $profile = Auth::user()->studentProfile;
-        $programme = Programme::findOrFail($data['programme_id']);
-
         $profile->update([
-            'kcse_mean_grade' => $data['kcse_mean_grade'],
-            'kcse_index_number' => $data['kcse_index_number'],
-            'kcse_year' => $data['kcse_year'],
-            'national_id' => $data['national_id'],
-            'county' => $data['county'],
+            'kcse_mean_grade' => $data['kcse_mean_grade'] ?? $profile->kcse_mean_grade,
+            'kcse_index_number' => $data['kcse_index_number'] ?? $profile->kcse_index_number,
+            'kcse_year' => $data['kcse_year'] ?? $profile->kcse_year,
+            'national_id' => $data['national_id'] ?? $profile->national_id,
+            'county' => $data['county'] ?? $profile->county,
+            'date_of_birth' => $data['date_of_birth'] ?? $profile->date_of_birth,
+            'gender' => $data['gender'] ?? $profile->gender,
+            'next_of_kin_name' => $data['next_of_kin_name'] ?? $profile->next_of_kin_name,
+            'next_of_kin_phone' => $data['next_of_kin_phone'] ?? $profile->next_of_kin_phone,
+            'employment_details' => $data['employment_details'] ?? $profile->employment_details,
         ]);
 
+        if ($isDraft) {
+            $application = Application::create([
+                'reference' => 'APP-'.strtoupper(Str::random(8)),
+                'student_profile_id' => $profile->id,
+                'programme_id' => $data['programme_id'] ?? null,
+                'intake_id' => $data['intake_id'] ?? null,
+                'campus_id' => $data['campus_id'] ?? null,
+                'status' => ApplicationStatus::Draft,
+            ]);
+
+            return redirect()->route('student.applications.index')
+                ->with('success', 'Application saved as draft.');
+        }
+
+        $programme = Programme::findOrFail($data['programme_id']);
         $eligibility = $this->rulesEngine->checkKcseEligibility($profile, $programme);
 
         $application = Application::create([
@@ -87,6 +116,7 @@ class ApplicationController extends Controller
             'student_profile_id' => $profile->id,
             'programme_id' => $data['programme_id'],
             'intake_id' => $data['intake_id'],
+            'campus_id' => $data['campus_id'] ?? null,
             'status' => $eligibility['eligible']
                 ? ApplicationStatus::Submitted
                 : ApplicationStatus::Rejected,

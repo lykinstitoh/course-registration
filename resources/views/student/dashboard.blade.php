@@ -24,6 +24,44 @@
             <div class="card stat"><strong>{{ $registration?->status?->label() ?? 'None' }}</strong><span>Registration Status</span></div>
             <div class="card stat"><strong>{{ $pendingPayments }}</strong><span>Pending Payments</span></div>
         </div>
+
+        @if($application)
+        <div class="card mt-4">
+            <h3>Application Progress</h3>
+            <div style="display: flex; justify-content: space-between; margin-top: 1rem; position: relative;">
+                <div style="position: absolute; top: 12px; left: 0; right: 0; height: 4px; background: var(--border); z-index: 1;"></div>
+                @php
+                    $steps = ['Draft', 'Submitted', 'Under Review', 'Approved'];
+                    $currentStatusLabel = $application->status->label();
+                    $currentIndex = array_search($currentStatusLabel, $steps);
+                    if ($currentStatusLabel === 'Waitlisted' || $currentStatusLabel === 'More Information Required') $currentIndex = 2;
+                    if ($currentStatusLabel === 'Rejected' || $currentStatusLabel === 'Withdrawn') $currentIndex = -1;
+                @endphp
+                @foreach($steps as $index => $step)
+                    <div style="position: relative; z-index: 2; text-align: center; width: 120px;">
+                        <div style="width: 28px; height: 28px; margin: 0 auto 8px; border-radius: 50%; background: {{ $currentIndex >= $index ? 'var(--primary)' : 'var(--border)' }}; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold;">{{ $index + 1 }}</div>
+                        <span style="font-size: 0.85rem; font-weight: {{ $currentIndex >= $index ? 'bold' : 'normal' }}; color: {{ $currentIndex >= $index ? 'var(--text-main)' : 'var(--muted)' }}">{{ $step }}</span>
+                    </div>
+                @endforeach
+            </div>
+            @if(in_array($currentStatusLabel, ['Waitlisted', 'More Information Required', 'Rejected']))
+                <div class="mt-4" style="padding: 1rem; background: #fff3cd; border-radius: 4px; color: #856404;">
+                    <strong>Attention:</strong> Your application is currently <u>{{ $currentStatusLabel }}</u>. 
+                    @if($application->rejection_reason) <br> Reason: {{ $application->rejection_reason }} @endif
+                </div>
+            @endif
+            @if($currentStatusLabel === 'Approved')
+                @php
+                    $letter = \App\Models\AdmissionLetter::where('application_id', $application->id)->first();
+                @endphp
+                @if($letter)
+                    <div class="mt-4">
+                        <a href="#" class="btn btn-primary" onclick="alert('Downloading {{ $letter->letter_path }}')">Download Admission Letter</a>
+                    </div>
+                @endif
+            @endif
+        </div>
+        @endif
         @if($activeIntake)
             <div class="card">
                 <h3>Active Intake: {{ $activeIntake->name }}</h3>

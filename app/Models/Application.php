@@ -19,6 +19,7 @@ class Application extends Model
         'reviewed_by',
         'reviewed_at',
         'submitted_at',
+        'campus_id',
     ];
 
     protected function casts(): array
@@ -53,5 +54,10 @@ class Application extends Model
     public function documents(): HasMany
     {
         return $this->hasMany(Document::class);
+    }
+
+    public function campus(): BelongsTo
+    {
+        return $this->belongsTo(Campus::class);
     }
 }

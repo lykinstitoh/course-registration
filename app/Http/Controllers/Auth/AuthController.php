@@ -57,12 +57,16 @@ class AuthController extends Controller
             'consent_data_processing' => ['accepted'],
         ]);
 
+        $hasEmail = !empty(env('MAIL_HOST')) && env('MAIL_HOST') !== '127.0.0.1';
+        $hasSms = !empty(env('SMS_PROVIDER_KEY'));
+
         $user = User::create([
             'name' => $data['name'],
             'email' => $data['email'],
             'phone' => $data['phone'],
             'password' => $data['password'],
             'role' => UserRole::Student,
+            'email_verified_at' => ($hasEmail || $hasSms) ? null : now(),
         ]);
 
         StudentProfile::create([
@@ -70,6 +74,13 @@ class AuthController extends Controller
             'consent_data_processing' => true,
             'consent_given_at' => now(),
         ]);
+
+        if ($hasEmail) {
+            // In a real app, we would send an email verification link here.
+            // e.g. event(new Registered($user));
+        } elseif ($hasSms) {
+            // In a real app, send an SMS OTP here.
+        }
 
         Auth::login($user);
 

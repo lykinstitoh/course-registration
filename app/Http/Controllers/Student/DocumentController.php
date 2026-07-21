@@ -19,7 +19,10 @@ class DocumentController extends Controller
             ->latest()
             ->get();
 
-        $documentTypes = config('ocrs.document_types');
+        $documentTypes = \App\Models\DocumentRequirement::where('is_required', true)
+            ->get()
+            ->pluck('name', 'code')
+            ->toArray();
 
         return view('student.documents.index', compact('documents', 'documentTypes'));
     }

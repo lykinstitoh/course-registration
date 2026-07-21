@@ -5,12 +5,16 @@ namespace App\Services\Payments;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Models\Payment;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Client\RequestException;
+use App\Services\Notifications\NotificationService;
 
 class MpesaService
 {
+    public function __construct(private NotificationService $notifications) {}
+
     public function initiateStkPush(Payment $payment, string $phoneNumber): array
     {
         try {
@@ -34,8 +38,8 @@ class MpesaService
             'PartyB' => config('mpesa.shortcode'),
             'PhoneNumber' => $phone,
             'CallBackURL' => config('mpesa.callback_url'),
-            'AccountReference' => $payment->reference,
-            'TransactionDesc' => 'OCRS Fee Payment',
+            'AccountReference' => substr($payment->reference, 0, 12),
+            'TransactionDesc' => substr('Fee Payment ' . $payment->reference, 0, 13),
         ];
 
         try {
@@ -80,7 +84,7 @@ class MpesaService
             return;
         }
 
-        if ($payment->status === PaymentStatus::Completed) {
+        if (in_array($payment->status, [PaymentStatus::Completed, PaymentStatus::Failed])) {
             return;
         }
 
@@ -88,10 +92,19 @@ class MpesaService
             $metadata = collect($result['CallbackMetadata']['Item'] ?? [])->pluck('Value', 'Name');
             $payment->update([
                 'status' => PaymentStatus::Completed,
-                'mpesa_receipt' => $metadata->get('MpesaReceiptNumber'),
+                'mpesa_receipt' => $receipt = $metadata->get('MpesaReceiptNumber'),
                 'paid_at' => now(),
                 'gateway_response' => $result,
             ]);
+
+            if ($payment->studentProfile && $payment->studentProfile->user) {
+                $this->notifications->notifyPaymentConfirmation(
+                    $payment->studentProfile->user,
+                    $payment->reference,
+                    (string) $payment->amount,
+                    $receipt
+                );
+            }
         } else {
             $payment->update([
                 'status' => PaymentStatus::Failed,
@@ -124,6 +137,15 @@ class MpesaService
                 'paid_at' => now(),
                 'gateway_response' => $payload,
             ]);
+
+            if ($payment->studentProfile && $payment->studentProfile->user) {
+                $this->notifications->notifyPaymentConfirmation(
+                    $payment->studentProfile->user,
+                    $payment->reference,
+                    (string) $payment->amount,
+                    $receipt
+                );
+            }
         }
     }
 
@@ -139,17 +161,19 @@ class MpesaService
 
     private function getAccessToken(): string
     {
-        $response = Http::acceptJson()->timeout(config('mpesa.timeout'))->withBasicAuth(
-            config('mpesa.consumer_key'),
-            config('mpesa.consumer_secret')
-        )->get(config('mpesa.base_url').'/oauth/v1/generate?grant_type=client_credentials')->throw();
+        return Cache::remember('mpesa_access_token', 3500, function () {
+            $response = Http::acceptJson()->timeout(config('mpesa.timeout'))->withBasicAuth(
+                config('mpesa.consumer_key'),
+                config('mpesa.consumer_secret')
+            )->get(config('mpesa.base_url').'/oauth/v1/generate?grant_type=client_credentials')->throw();
 
-        $token = $response->json('access_token');
-        if (! is_string($token) || $token === '') {
-            throw new \RuntimeException('M-Pesa did not return an access token. Check your Daraja credentials.');
-        }
+            $token = $response->json('access_token');
+            if (! is_string($token) || $token === '') {
+                throw new \RuntimeException('M-Pesa did not return an access token. Check your Daraja credentials.');
+            }
 
-        return $token;
+            return $token;
+        });
     }
 
     private function formatPhone(string $phone): string

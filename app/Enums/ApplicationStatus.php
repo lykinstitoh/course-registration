@@ -10,6 +10,8 @@ enum ApplicationStatus: string
     case Approved = 'approved';
     case Rejected = 'rejected';
     case Withdrawn = 'withdrawn';
+    case MoreInfoRequired = 'more_info_required';
+    case Waitlisted = 'waitlisted';
 
     public function label(): string
     {
@@ -20,6 +22,8 @@ enum ApplicationStatus: string
             self::Approved => 'Approved',
             self::Rejected => 'Rejected',
             self::Withdrawn => 'Withdrawn',
+            self::MoreInfoRequired => 'More Information Required',
+            self::Waitlisted => 'Waitlisted',
         };
     }
 }

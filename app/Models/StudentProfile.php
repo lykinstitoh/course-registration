@@ -23,6 +23,7 @@ class StudentProfile extends Model
         'next_of_kin_phone',
         'consent_data_processing',
         'consent_given_at',
+        'employment_details',
     ];
 
     protected function casts(): array

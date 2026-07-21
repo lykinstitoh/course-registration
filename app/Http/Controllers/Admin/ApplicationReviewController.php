@@ -25,13 +25,17 @@ class ApplicationReviewController extends Controller
     public function review(Request $request, Application $application)
     {
         $data = $request->validate([
-            'action' => ['required', 'in:approve,reject'],
+            'action' => ['required', 'in:approve,reject,waitlist,more_info'],
             'rejection_reason' => ['required_if:action,reject', 'nullable', 'string'],
+            'notes' => ['nullable', 'string'],
         ]);
 
-        $status = $data['action'] === 'approve'
-            ? ApplicationStatus::Approved
-            : ApplicationStatus::Rejected;
+        $status = match ($data['action']) {
+            'approve' => ApplicationStatus::Approved,
+            'reject' => ApplicationStatus::Rejected,
+            'waitlist' => ApplicationStatus::Waitlisted,
+            'more_info' => ApplicationStatus::MoreInfoRequired,
+        };
 
         $application->update([
             'status' => $status,
@@ -40,9 +44,23 @@ class ApplicationReviewController extends Controller
             'rejection_reason' => $data['rejection_reason'] ?? null,
         ]);
 
+        \App\Models\ApplicationStatusHistory::create([
+            'application_id' => $application->id,
+            'status' => $status,
+            'notes' => $data['notes'] ?? $data['rejection_reason'],
+            'user_id' => Auth::id(),
+        ]);
+
         if ($status === ApplicationStatus::Approved) {
             $application->studentProfile->update([
-                'admission_number' => config('ocrs.institution_code').'-'.str_pad($application->id, 5, '0', STR_PAD_LEFT),
+                'admission_number' => config('ocrs.institution_code', 'OCRS').'-'.str_pad($application->id, 5, '0', STR_PAD_LEFT),
+            ]);
+
+            \App\Models\AdmissionLetter::create([
+                'student_profile_id' => $application->student_profile_id,
+                'application_id' => $application->id,
+                'letter_path' => 'letters/admission_'.$application->reference.'.pdf', // Mock generation
+                'generated_at' => now(),
             ]);
         }
 

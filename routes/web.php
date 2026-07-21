@@ -61,4 +61,6 @@ Route::middleware(['auth', 'role:registrar,finance,academic_staff,admin'])->pref
     Route::get('/documents', [DocumentReviewController::class, 'index'])->name('documents.index');
     Route::post('/documents/{document}/review', [DocumentReviewController::class, 'review'])->name('documents.review');
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('/settings', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'index'])->name('settings.index');
+    Route::put('/settings', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'update'])->name('settings.update');
 });

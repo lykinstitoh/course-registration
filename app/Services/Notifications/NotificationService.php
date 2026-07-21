@@ -27,6 +27,11 @@ class NotificationService
             return $log;
         }
 
+        if (empty(env('SMS_PROVIDER_KEY')) && empty(config('africastalking.username'))) {
+            $log->update(['status' => 'failed', 'provider_response' => ['error' => 'SMS Gateway not configured']]);
+            return $log;
+        }
+
         if ($this->isSmsSandbox()) {
             $log->update([
                 'status' => 'sent',
@@ -73,6 +78,11 @@ class NotificationService
             'message' => $message,
             'status' => 'queued',
         ]);
+
+        if (empty(env('MAIL_HOST')) || env('MAIL_HOST') === '127.0.0.1') {
+            $log->update(['status' => 'failed', 'provider_response' => ['error' => 'SMTP not configured']]);
+            return $log;
+        }
 
         try {
             Mail::raw($message, function ($mail) use ($user, $subject) {
