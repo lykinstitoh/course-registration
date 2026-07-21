@@ -11,7 +11,7 @@
         </div>
         <div class="card">
             <table>
-                <thead><tr><th>Reference</th><th>Programme</th><th>Intake</th><th>Status</th><th>Submitted</th></tr></thead>
+                <thead><tr><th>Reference</th><th>Programme</th><th>Intake</th><th>Status</th><th>Submitted</th><th>Actions</th></tr></thead>
                 <tbody>
                     @forelse($applications as $app)
                         <tr>
@@ -20,6 +20,20 @@
                             <td>{{ $app->intake->name }}</td>
                             <td><span class="badge badge-amber">{{ $app->status->label() }}</span></td>
                             <td>{{ $app->submitted_at?->format('d M Y') ?? '—' }}</td>
+                            <td>
+                                <div style="display:flex; gap:0.5rem;">
+                                    @if($app->status->value === 'pending_fee')
+                                        <a href="{{ route('student.payments.index') }}" class="btn btn-sm btn-primary">Pay Fee</a>
+                                    @endif
+                                    @if(in_array($app->status->value, ['draft', 'pending_fee']))
+                                        <form method="POST" action="{{ route('student.applications.cancel', $app) }}" onsubmit="return confirm('Are you sure you want to cancel this application?');">
+                                            @csrf
+                                            @method('PATCH')
+                                            <button type="submit" class="btn btn-sm btn-outline" style="color:var(--danger); border-color:var(--danger);">Cancel</button>
+                                        </form>
+                                    @endif
+                                </div>
+                            </td>
                         </tr>
                     @empty
                         <tr><td colspan="5">No applications yet.</td></tr>
