@@ -17,11 +17,10 @@
 @section('content')
 <section style="background:#171d5e;color:#fff;padding:4rem 0;">
     <div class="container">
-        <p style="opacity:.85;font-size:.85rem;margin-bottom:.5rem;">Online Course Registration System (OCRS)</p>
-        <h1 style="font-size:2.5rem;line-height:1.2;margin-bottom:1rem;">Digital Registration for Self-Sponsored Students in Kenya</h1>
+        <p style="opacity:.85;font-size:.85rem;margin-bottom:.5rem;">Online Course Registration System</p>
+        <h1 style="font-size:2.5rem;line-height:1.2;margin-bottom:1rem;">Your Journey at {{ $institutionName }} Starts Here</h1>
         <p style="max-width:640px;opacity:.9;margin-bottom:1.5rem;">
-            End-to-end management of the student lifecycle — from programme application and M-Pesa fee payment
-            to course unit registration, timetables, and academic results.
+            Join our vibrant academic community! Apply for your dream programme, easily manage your fee payments, register for classes, and access your timetable and results—all in one place.
         </p>
         <div style="display:flex;gap:.75rem;flex-wrap:wrap;">
             <a href="{{ route('register') }}" class="btn btn-accent">Start Application</a>
@@ -36,14 +35,14 @@
 </section>
 
 <section id="features" class="container" style="padding:3rem 0;">
-    <h2 style="color:#175e4e;margin-bottom:1.5rem;">System Capabilities</h2>
+    <h2 style="color:#175e4e;margin-bottom:1.5rem;">Everything You Need in One Place</h2>
     <div class="grid-3">
-        <div class="card"><h3>Student Portal</h3><p>Submit applications, upload credentials, register for units, pay via M-Pesa STK Push or bank transfer, and access timetables and results.</p></div>
-        <div class="card"><h3>Administration Panel</h3><p>Registrar, finance, and academic staff manage intakes, approve applications, configure fees, enforce rules, and generate reports.</p></div>
-        <div class="card"><h3>Academic Rules Engine</h3><p>Enforces KCSE eligibility, prerequisite chains, unit capacity limits, and semester registration deadlines automatically.</p></div>
-        <div class="card"><h3>M-Pesa Integration</h3><p>Daraja API STK Push and C2B for real-time payments and automated fee clearance — no manual confirmation.</p></div>
-        <div class="card"><h3>Document Management</h3><p>Secure upload and verification of KCSE certificates and IDs with a full audit trail of review actions.</p></div>
-        <div class="card"><h3>Notifications</h3><p>Africa's Talking SMS and SMTP email alerts for application status, payment confirmation, and deadline reminders.</p></div>
+        <div class="card"><h3>Easy Application Process</h3><p>Browse our accredited programmes and submit your application online in just a few clicks.</p></div>
+        <div class="card"><h3>Seamless Fee Payments</h3><p>Pay your application and tuition fees securely via M-Pesa STK Push or Bank Transfer with instant confirmation.</p></div>
+        <div class="card"><h3>Simple Course Registration</h3><p>Register for your semester units instantly once you are admitted and track your curriculum progress.</p></div>
+        <div class="card"><h3>Stay Organized</h3><p>Access your personalized class timetable and view your academic results as soon as they are published.</p></div>
+        <div class="card"><h3>Secure Document Uploads</h3><p>Easily upload your KCSE certificates, ID, and other supporting documents directly from your device.</p></div>
+        <div class="card"><h3>Instant Notifications</h3><p>Get real-time SMS and email alerts about your application status, payment confirmations, and important deadlines.</p></div>
     </div>
 </section>
 
@@ -69,13 +68,10 @@
 
 <section id="compliance" class="container" style="padding:3rem 0;">
     <div class="card">
-        <h2>Regulatory Compliance</h2>
-        <ul style="margin-left:1.25rem;color:var(--muted);">
-            <li>CUE programme accreditation data model and reporting structure</li>
-            <li>Kenya Data Protection Act 2019 — consent capture and {{ config('ocrs.data_retention_years') }}-year retention policy</li>
-            <li>Institutional financial record retention for fee transactions</li>
-            <li>Audit trails for document verification and administrative actions</li>
-        </ul>
+        <h2>Your Data is Secure</h2>
+        <p style="color:var(--muted); margin-top:0.5rem; line-height: 1.6;">
+            We take your privacy seriously. Your personal information and academic records are securely stored and processed in compliance with the Kenya Data Protection Act. We ensure your data is only used for academic and administrative purposes within {{ $institutionName }}.
+        </p>
     </div>
 </section>
 @endsection

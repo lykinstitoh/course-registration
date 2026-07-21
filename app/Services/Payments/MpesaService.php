@@ -28,6 +28,16 @@ class MpesaService
             config('mpesa.shortcode').config('mpesa.passkey').$timestamp
         );
 
+        $callbackUrl = config('mpesa.callback_url');
+        if (!$callbackUrl) {
+            $callbackUrl = url('/api/mpesa/stk-callback');
+        }
+        
+        // Safaricom strictly rejects localhost/127.0.0.1. If testing locally without a tunnel, use a dummy URL to prevent immediate API rejection.
+        if (str_contains($callbackUrl, 'localhost') || str_contains($callbackUrl, '127.0.0.1')) {
+            $callbackUrl = 'https://sandbox.safaricom.co.ke/dummy-callback';
+        }
+
         $payload = [
             'BusinessShortCode' => config('mpesa.shortcode'),
             'Password' => $password,
@@ -37,7 +47,7 @@ class MpesaService
             'PartyA' => $phone,
             'PartyB' => config('mpesa.shortcode'),
             'PhoneNumber' => $phone,
-            'CallBackURL' => config('mpesa.callback_url'),
+            'CallBackURL' => $callbackUrl,
             'AccountReference' => substr($payment->reference, 0, 12),
             'TransactionDesc' => substr('Fee Payment ' . $payment->reference, 0, 13),
         ];

@@ -14,6 +14,8 @@ class LandingController extends Controller
             ->where('application_closes', '>=', now())
             ->first();
 
-        return view('landing', compact('programmes', 'activeIntake'));
+        $institutionName = \App\Models\SystemSetting::where('key', 'institution_name')->value('value') ?? 'OCRS University';
+
+        return view('landing', compact('programmes', 'activeIntake', 'institutionName'));
     }
 }
