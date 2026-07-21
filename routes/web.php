@@ -61,6 +61,12 @@ Route::middleware(['auth', 'role:registrar,finance,academic_staff,admin'])->pref
     Route::get('/documents', [DocumentReviewController::class, 'index'])->name('documents.index');
     Route::post('/documents/{document}/review', [DocumentReviewController::class, 'review'])->name('documents.review');
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+    
+    Route::get('/campuses', [\App\Http\Controllers\Admin\CampusController::class, 'index'])->name('campuses.index');
+    Route::post('/campuses', [\App\Http\Controllers\Admin\CampusController::class, 'store'])->name('campuses.store');
+    Route::put('/campuses/{campus}', [\App\Http\Controllers\Admin\CampusController::class, 'update'])->name('campuses.update');
+    Route::delete('/campuses/{campus}', [\App\Http\Controllers\Admin\CampusController::class, 'destroy'])->name('campuses.destroy');
+
     Route::get('/settings', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'index'])->name('settings.index');
     Route::put('/settings', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'update'])->name('settings.update');
 });

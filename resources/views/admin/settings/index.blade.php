@@ -3,16 +3,7 @@
 @section('nav')<form method="POST" action="{{ route('logout') }}">@csrf<button class="btn btn-outline" type="submit">Logout</button></form>@endsection
 @section('content')
 <div class="container portal">
-    <aside class="sidebar">
-        <nav>
-            <a href="{{ route('admin.dashboard') }}">Dashboard</a>
-            <a href="{{ route('admin.applications.index') }}">Applications</a>
-            <a href="{{ route('admin.intakes.index') }}">Intakes</a>
-            <a href="{{ route('admin.fees.index') }}">Fees</a>
-            <a href="{{ route('admin.documents.index') }}">Documents</a>
-            <a href="{{ route('admin.settings.index') }}" class="active">Settings</a>
-        </nav>
-    </aside>
+    @include('partials.admin-sidebar', ['active' => 'settings'])
     <div>
         <h1 style="color:var(--primary);margin-bottom:1rem;">System Configuration</h1>
         
