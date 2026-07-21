@@ -122,5 +122,29 @@ class DatabaseSeeder extends Seeder
 
         \App\Models\Campus::create(['name' => 'Main Campus - Nairobi', 'code' => 'MC-NBI', 'location' => 'Nairobi CBD', 'is_active' => true]);
         \App\Models\Campus::create(['name' => 'Mombasa City Campus', 'code' => 'MSA-CC', 'location' => 'Mombasa Island', 'is_active' => true]);
+
+        $settings = [
+            // General
+            ['group' => 'general', 'key' => 'institution_name', 'value' => 'OCRS University', 'type' => 'string'],
+            ['group' => 'general', 'key' => 'institution_code', 'value' => 'OCRS', 'type' => 'string'],
+            ['group' => 'general', 'key' => 'maintenance_mode', 'value' => '0', 'type' => 'boolean'],
+            
+            // Admissions
+            ['group' => 'admission', 'key' => 'require_kcse_verification', 'value' => '1', 'type' => 'boolean'],
+            ['group' => 'admission', 'key' => 'auto_generate_admission_number', 'value' => '1', 'type' => 'boolean'],
+            ['group' => 'admission', 'key' => 'allow_late_applications', 'value' => '0', 'type' => 'boolean'],
+
+            // Auth
+            ['group' => 'auth', 'key' => 'require_email_verification', 'value' => '0', 'type' => 'boolean'],
+            ['group' => 'auth', 'key' => 'require_sms_verification', 'value' => '0', 'type' => 'boolean'],
+
+            // Payment
+            ['group' => 'payment', 'key' => 'enable_mpesa', 'value' => '1', 'type' => 'boolean'],
+            ['group' => 'payment', 'key' => 'enable_bank_transfer', 'value' => '1', 'type' => 'boolean'],
+        ];
+
+        foreach ($settings as $setting) {
+            \App\Models\SystemSetting::create($setting);
+        }
     }
 }
