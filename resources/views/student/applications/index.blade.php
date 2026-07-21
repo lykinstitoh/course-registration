@@ -32,6 +32,9 @@
                                             <button type="submit" class="btn btn-sm btn-outline" style="color:var(--danger); border-color:var(--danger);">Cancel</button>
                                         </form>
                                     @endif
+                                    @if($app->status->value === 'approved')
+                                        <a href="{{ route('student.applications.letter', $app) }}" class="btn btn-sm btn-outline" target="_blank">Download Letter</a>
+                                    @endif
                                 </div>
                             </td>
                         </tr>

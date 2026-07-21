@@ -40,6 +40,7 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
     Route::get('/applications', [ApplicationController::class, 'index'])->name('applications.index');
     Route::get('/applications/create', [ApplicationController::class, 'create'])->name('applications.create');
     Route::post('/applications', [ApplicationController::class, 'store'])->name('applications.store');
+    Route::get('/applications/{application}/letter', [ApplicationController::class, 'downloadLetter'])->name('applications.letter');
     Route::patch('/applications/{application}/cancel', [ApplicationController::class, 'cancel'])->name('applications.cancel');
     Route::get('/enrollment', [\App\Http\Controllers\Student\EnrollmentController::class, 'index'])->name('enrollment.index');
     Route::get('/registrations', [RegistrationController::class, 'index'])->name('registrations.index');
@@ -66,10 +67,8 @@ Route::middleware(['auth', 'role:registrar,finance,academic_staff,admin'])->pref
     Route::post('/documents/{document}/review', [DocumentReviewController::class, 'review'])->name('documents.review');
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     
-    Route::get('/campuses', [\App\Http\Controllers\Admin\CampusController::class, 'index'])->name('campuses.index');
-    Route::post('/campuses', [\App\Http\Controllers\Admin\CampusController::class, 'store'])->name('campuses.store');
-    Route::put('/campuses/{campus}', [\App\Http\Controllers\Admin\CampusController::class, 'update'])->name('campuses.update');
-    Route::delete('/campuses/{campus}', [\App\Http\Controllers\Admin\CampusController::class, 'destroy'])->name('campuses.destroy');
+    Route::resource('campuses', \App\Http\Controllers\Admin\CampusController::class);
+    Route::resource('course-units', \App\Http\Controllers\Admin\CourseUnitController::class)->except(['show']);
 
     Route::get('/settings', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'index'])->name('settings.index');
     Route::put('/settings', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'update'])->name('settings.update');

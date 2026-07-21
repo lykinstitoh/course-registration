@@ -128,4 +128,28 @@ class StudentProfile extends Model
 
         return $this->getPaidTuitionAmount() >= $requiredAmount;
     }
+
+    public function getCurrentSemesterLevel(): int
+    {
+        $latestRegistration = $this->registrations()
+            ->with(['semester', 'items.courseUnit'])
+            ->whereIn('status', [\App\Enums\RegistrationStatus::Submitted, \App\Enums\RegistrationStatus::Confirmed])
+            ->latest('submitted_at')
+            ->first();
+
+        if (!$latestRegistration || $latestRegistration->items->isEmpty()) {
+            return 1;
+        }
+
+        $maxLevel = $latestRegistration->items->max(function ($item) {
+            return $item->courseUnit->semester_level;
+        });
+
+        // If the academic semester for their latest registration has lapsed, they move to the next level
+        if ($latestRegistration->semester->ends_on < now()) {
+            return $maxLevel + 1;
+        }
+
+        return $maxLevel;
+    }
 }

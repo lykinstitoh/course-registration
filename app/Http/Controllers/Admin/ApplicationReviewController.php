@@ -56,10 +56,14 @@ class ApplicationReviewController extends Controller
                 'admission_number' => config('ocrs.institution_code', 'OCRS').'-'.str_pad($application->id, 5, '0', STR_PAD_LEFT),
             ]);
 
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.admission_letter', compact('application'));
+            $path = 'letters/admission_'.$application->reference.'.pdf';
+            \Illuminate\Support\Facades\Storage::disk('public')->put($path, $pdf->output());
+
             \App\Models\AdmissionLetter::create([
                 'student_profile_id' => $application->student_profile_id,
                 'application_id' => $application->id,
-                'letter_path' => 'letters/admission_'.$application->reference.'.pdf', // Mock generation
+                'letter_path' => $path,
                 'generated_at' => now(),
             ]);
         }
