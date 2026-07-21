@@ -138,4 +138,22 @@ class PaymentController extends Controller
         }
         return $finalFees;
     }
+
+    public function receipt(Payment $payment)
+    {
+        $profile = Auth::user()->studentProfile;
+        
+        if ($payment->student_profile_id !== $profile->id) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        if ($payment->status !== PaymentStatus::Completed) {
+            return back()->with('error', 'Receipt is only available for completed payments.');
+        }
+
+        $payment->load('feeStructure');
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('student.payments.receipt', compact('payment', 'profile'));
+        
+        return $pdf->download("Receipt_{$payment->reference}.pdf");
+    }
 }

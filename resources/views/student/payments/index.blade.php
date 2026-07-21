@@ -39,7 +39,7 @@
         <div class="card">
             <h3>Payment History</h3>
             <table>
-                <thead><tr><th>Reference</th><th>Amount</th><th>Method</th><th>Status</th><th>Receipt</th></tr></thead>
+                <thead><tr><th>Reference</th><th>Amount</th><th>Method</th><th>Status</th><th>Gateway Ref</th><th>Action</th></tr></thead>
                 <tbody>
                     @forelse($payments as $payment)
                         <tr>
@@ -47,7 +47,14 @@
                             <td>KES {{ number_format($payment->amount) }}</td>
                             <td>{{ str_replace('_', ' ', Str::title($payment->method)) }}</td>
                             <td>{{ $payment->status->label() }}</td>
-                            <td>{{ $payment->mpesa_receipt ?? '—' }}</td>
+                            <td>{{ $payment->mpesa_receipt ?? $payment->bank_reference ?? '—' }}</td>
+                            <td>
+                                @if($payment->status->value === 'completed')
+                                    <a href="{{ route('student.payments.receipt', $payment) }}" class="btn btn-sm btn-outline" target="_blank">Download PDF</a>
+                                @else
+                                    —
+                                @endif
+                            </td>
                         </tr>
                     @empty
                         <tr><td colspan="5">No payments yet.</td></tr>

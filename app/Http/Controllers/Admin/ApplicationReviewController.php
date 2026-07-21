@@ -41,13 +41,13 @@ class ApplicationReviewController extends Controller
             'status' => $status,
             'reviewed_by' => Auth::id(),
             'reviewed_at' => now(),
-            'rejection_reason' => $data['rejection_reason'] ?? null,
+            'rejection_reason' => $request->input('rejection_reason'),
         ]);
 
         \App\Models\ApplicationStatusHistory::create([
             'application_id' => $application->id,
             'status' => $status,
-            'notes' => $data['notes'] ?? $data['rejection_reason'],
+            'notes' => $request->input('notes') ?? $request->input('rejection_reason'),
             'user_id' => Auth::id(),
         ]);
 

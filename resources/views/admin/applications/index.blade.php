@@ -18,8 +18,13 @@
                         <td>{{ $app->status->label() }}</td>
                         <td>
                             @if(in_array($app->status->value, ['submitted', 'under_review']))
-                                <form method="POST" action="{{ route('admin.applications.review', $app) }}" style="display:inline;">@csrf<input type="hidden" name="action" value="approve"><button class="btn btn-primary" type="submit">Approve</button></form>
-                                <form method="POST" action="{{ route('admin.applications.review', $app) }}" style="display:inline;margin-left:.25rem;">@csrf<input type="hidden" name="action" value="reject"><input type="hidden" name="rejection_reason" value="Does not meet requirements"><button class="btn btn-outline" type="submit">Reject</button></form>
+                                <form method="POST" action="{{ route('admin.applications.review', $app) }}" style="display:inline;">@csrf<input type="hidden" name="action" value="approve"><button class="btn btn-primary" type="submit" onclick="return confirm('Approve this application?');">Approve</button></form>
+                                <form method="POST" action="{{ route('admin.applications.review', $app) }}" style="display:inline;margin-left:.25rem;" onsubmit="return handleReject(this);">
+                                    @csrf
+                                    <input type="hidden" name="action" value="reject">
+                                    <input type="hidden" name="rejection_reason" class="reason-input">
+                                    <button class="btn btn-outline" style="color:var(--danger); border-color:var(--danger);" type="submit">Reject</button>
+                                </form>
                             @endif
                         </td>
                     </tr>
@@ -29,4 +34,14 @@
         {{ $applications->links() }}
     </div>
 </div>
+<script>
+function handleReject(form) {
+    const reason = prompt("Please enter the reason for rejection:");
+    if (!reason) {
+        return false; // Cancel submission if no reason provided
+    }
+    form.querySelector('.reason-input').value = reason;
+    return true;
+}
+</script>
 @endsection

@@ -19,7 +19,12 @@
                         <td>
                             @if($doc->status->value === 'pending')
                                 <form method="POST" action="{{ route('admin.documents.review', $doc) }}" style="display:inline;">@csrf<input type="hidden" name="action" value="verify"><button class="btn btn-primary" type="submit">Verify</button></form>
-                                <form method="POST" action="{{ route('admin.documents.review', $doc) }}" style="display:inline;">@csrf<input type="hidden" name="action" value="reject"><input type="hidden" name="rejection_reason" value="Document unclear or invalid"><button class="btn btn-outline" type="submit">Reject</button></form>
+                                <form method="POST" action="{{ route('admin.documents.review', $doc) }}" style="display:inline;" onsubmit="return handleReject(this);">
+                                    @csrf
+                                    <input type="hidden" name="action" value="reject">
+                                    <input type="hidden" name="rejection_reason" class="reason-input">
+                                    <button class="btn btn-outline" style="color:var(--danger); border-color:var(--danger);" type="submit">Reject</button>
+                                </form>
                             @endif
                         </td>
                     </tr>
@@ -29,4 +34,14 @@
         {{ $documents->links() }}
     </div>
 </div>
+<script>
+function handleReject(form) {
+    const reason = prompt("Please enter the reason for rejecting this document:");
+    if (!reason) {
+        return false;
+    }
+    form.querySelector('.reason-input').value = reason;
+    return true;
+}
+</script>
 @endsection
