@@ -26,6 +26,18 @@
                 </div>
 
                 <div class="form-group">
+                    <label>Associated Programmes</label>
+                    <select name="programme_ids[]" class="form-control" multiple style="height: 120px;">
+                        @foreach($programmes as $programme)
+                            <option value="{{ $programme->id }}" {{ in_array($programme->id, old('programme_ids', [])) ? 'selected' : '' }}>
+                                {{ $programme->name }} ({{ $programme->code }})
+                            </option>
+                        @endforeach
+                    </select>
+                    <small>Hold Ctrl (Windows) or Cmd (Mac) to select multiple programmes.</small>
+                </div>
+
+                <div class="form-group">
                     <label>Credit Units</label>
                     <input type="number" name="credit_units" class="form-control" required min="1" value="{{ old('credit_units', 3) }}">
                 </div>
