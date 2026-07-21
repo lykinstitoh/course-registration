@@ -119,5 +119,8 @@ class DatabaseSeeder extends Seeder
             'venue' => 'Lab 1',
             'lecturer' => 'Dr. Wanjiku Kamau',
         ]);
+
+        \App\Models\Campus::create(['name' => 'Main Campus - Nairobi', 'code' => 'MC-NBI', 'location' => 'Nairobi CBD', 'is_active' => true]);
+        \App\Models\Campus::create(['name' => 'Mombasa City Campus', 'code' => 'MSA-CC', 'location' => 'Mombasa Island', 'is_active' => true]);
     }
 }
