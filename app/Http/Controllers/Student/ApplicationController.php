@@ -190,4 +190,23 @@ class ApplicationController extends Controller
         return redirect()->route('student.applications.index')
             ->with('success', 'Application submitted successfully.');
     }
+
+    public function cancel(Application $application)
+    {
+        // Ensure the student owns the application
+        if ($application->student_profile_id !== Auth::user()->studentProfile->id) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        // Only allow cancelling if it's draft or pending fee
+        if (!in_array($application->status, [ApplicationStatus::Draft, ApplicationStatus::PendingFee])) {
+            return back()->with('error', 'You can only cancel draft or pending applications.');
+        }
+
+        $application->update([
+            'status' => ApplicationStatus::Cancelled
+        ]);
+
+        return back()->with('success', 'Application cancelled successfully.');
+    }
 }

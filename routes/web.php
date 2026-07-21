@@ -40,6 +40,7 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
     Route::get('/applications', [ApplicationController::class, 'index'])->name('applications.index');
     Route::get('/applications/create', [ApplicationController::class, 'create'])->name('applications.create');
     Route::post('/applications', [ApplicationController::class, 'store'])->name('applications.store');
+    Route::patch('/applications/{application}/cancel', [ApplicationController::class, 'cancel'])->name('applications.cancel');
     Route::get('/registrations', [RegistrationController::class, 'index'])->name('registrations.index');
     Route::post('/registrations', [RegistrationController::class, 'store'])->name('registrations.store');
     Route::get('/payments', [PaymentController::class, 'index'])->name('payments.index');
@@ -58,6 +59,7 @@ Route::middleware(['auth', 'role:registrar,finance,academic_staff,admin'])->pref
     Route::post('/intakes', [IntakeController::class, 'store'])->name('intakes.store');
     Route::get('/fees', [FeeStructureController::class, 'index'])->name('fees.index');
     Route::post('/fees', [FeeStructureController::class, 'store'])->name('fees.store');
+    Route::delete('/fees/{fee}', [FeeStructureController::class, 'destroy'])->name('fees.destroy');
     Route::get('/documents', [DocumentReviewController::class, 'index'])->name('documents.index');
     Route::post('/documents/{document}/review', [DocumentReviewController::class, 'review'])->name('documents.review');
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');

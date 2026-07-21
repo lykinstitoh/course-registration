@@ -37,7 +37,7 @@
         </div>
         <div class="card">
             <table>
-                <thead><tr><th>Applicable To</th><th>Intake</th><th>Type</th><th>Description</th><th>Amount</th></tr></thead>
+                <thead><tr><th>Applicable To</th><th>Intake</th><th>Type</th><th>Description</th><th>Amount</th><th>Mandatory</th><th>Action</th></tr></thead>
                 <tbody>
                     @foreach($fees as $fee)
                         <tr>
@@ -54,6 +54,20 @@
                             <td>{{ $fee->fee_type }}</td>
                             <td>{{ $fee->description }}</td>
                             <td>KES {{ number_format($fee->amount) }}</td>
+                            <td>
+                                @if($fee->is_mandatory)
+                                    <span class="badge badge-primary">Yes</span>
+                                @else
+                                    <span class="badge badge-secondary">No</span>
+                                @endif
+                            </td>
+                            <td>
+                                <form method="POST" action="{{ route('admin.fees.destroy', $fee) }}" onsubmit="return confirm('Are you sure you want to delete this fee structure?');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-outline" style="color:var(--danger); border-color:var(--danger);">Delete</button>
+                                </form>
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>

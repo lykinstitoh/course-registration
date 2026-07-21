@@ -35,8 +35,26 @@ class FeeStructureController extends Controller
             return back()->withErrors(['programme_id' => 'You must select either a specific programme or an award level.'])->withInput();
         }
 
-        FeeStructure::create($data);
+        FeeStructure::updateOrCreate(
+            [
+                'intake_id' => $data['intake_id'],
+                'fee_type' => $data['fee_type'],
+                'programme_id' => $data['programme_id'] ?? null,
+                'award_level' => $data['award_level'] ?? null,
+            ],
+            [
+                'description' => $data['description'],
+                'amount' => $data['amount'],
+                'is_mandatory' => $request->has('is_mandatory'),
+            ]
+        );
 
-        return back()->with('success', 'Fee structure added.');
+        return back()->with('success', 'Fee structure added or updated successfully.');
+    }
+
+    public function destroy(FeeStructure $fee)
+    {
+        $fee->delete();
+        return back()->with('success', 'Fee structure deleted successfully.');
     }
 }
