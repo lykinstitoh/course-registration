@@ -34,6 +34,10 @@ class RegistrationController extends Controller
             return redirect()->route('student.dashboard')->with('error', 'You must be admitted to an approved programme to register for courses.');
         }
 
+        if (!$profile->isEnrolled()) {
+            return redirect()->route('student.enrollment.index')->with('warning', 'You must complete your enrollment checklist before registering for courses.');
+        }
+
         $registrations = $profile
             ->registrations()
             ->with(['semester.intake', 'items.courseUnit'])
@@ -67,6 +71,10 @@ class RegistrationController extends Controller
         $semester = Semester::findOrFail($data['semester_id']);
         $application = $profile->applications()->where('status', 'approved')->first();
         $programme = $application?->programme;
+
+        if (!$profile->isEnrolled()) {
+            return redirect()->route('student.enrollment.index')->with('warning', 'You must complete your enrollment checklist before registering for courses.');
+        }
 
         $failed = [];
         foreach ($data['course_unit_ids'] as $unitId) {

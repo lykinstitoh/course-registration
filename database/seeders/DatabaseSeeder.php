@@ -141,6 +141,7 @@ class DatabaseSeeder extends Seeder
             // Payment
             ['group' => 'payment', 'key' => 'enable_mpesa', 'value' => '1', 'type' => 'boolean'],
             ['group' => 'payment', 'key' => 'enable_bank_transfer', 'value' => '1', 'type' => 'boolean'],
+            ['group' => 'fees', 'key' => 'min_tuition_percentage', 'value' => '100', 'type' => 'integer'],
             ['group' => 'payment', 'key' => 'bank_name', 'value' => 'Equity Bank', 'type' => 'string'],
             ['group' => 'payment', 'key' => 'bank_account_name', 'value' => 'OCRS University', 'type' => 'string'],
             ['group' => 'payment', 'key' => 'bank_account_number', 'value' => '0123456789', 'type' => 'string'],

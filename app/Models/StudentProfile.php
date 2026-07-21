@@ -65,4 +65,67 @@ class StudentProfile extends Model
     {
         return $this->hasMany(Result::class);
     }
+
+    public function hasAllRequiredDocumentsVerified(): bool
+    {
+        $requiredDocs = \App\Models\DocumentRequirement::where('is_required', true)->get();
+        
+        foreach ($requiredDocs as $req) {
+            $doc = $this->documents()
+                ->where('document_type', $req->code)
+                ->where('status', \App\Enums\DocumentStatus::Verified)
+                ->first();
+            
+            if (!$doc) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
+    public function getRequiredTuitionAmount(): float
+    {
+        $application = $this->applications()->where('status', 'approved')->first();
+        if (!$application) return 0;
+
+        $tuitionFee = \App\Models\FeeStructure::where('programme_id', $application->programme_id)
+            ->where('intake_id', $application->intake_id)
+            ->where('fee_type', 'tuition')
+            ->first();
+
+        if (!$tuitionFee) {
+            $tuitionFee = \App\Models\FeeStructure::whereNull('programme_id')
+                ->where('award_level', $application->programme->award_level)
+                ->where('intake_id', $application->intake_id)
+                ->where('fee_type', 'tuition')
+                ->first();
+        }
+
+        if (!$tuitionFee) return 0;
+
+        return $tuitionFee->amount;
+    }
+
+    public function getPaidTuitionAmount(): float
+    {
+        return $this->payments()
+            ->whereHas('feeStructure', function ($q) {
+                $q->where('fee_type', 'tuition');
+            })
+            ->where('status', \App\Enums\PaymentStatus::Completed)
+            ->sum('amount');
+    }
+
+    public function isEnrolled(): bool
+    {
+        if (!$this->hasAllRequiredDocumentsVerified()) {
+            return false;
+        }
+
+        $minPercentage = \App\Models\SystemSetting::getValue('min_tuition_percentage', 100);
+        $requiredAmount = $this->getRequiredTuitionAmount() * ($minPercentage / 100);
+
+        return $this->getPaidTuitionAmount() >= $requiredAmount;
+    }
 }

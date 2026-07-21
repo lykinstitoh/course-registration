@@ -41,6 +41,7 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
     Route::get('/applications/create', [ApplicationController::class, 'create'])->name('applications.create');
     Route::post('/applications', [ApplicationController::class, 'store'])->name('applications.store');
     Route::patch('/applications/{application}/cancel', [ApplicationController::class, 'cancel'])->name('applications.cancel');
+    Route::get('/enrollment', [\App\Http\Controllers\Student\EnrollmentController::class, 'index'])->name('enrollment.index');
     Route::get('/registrations', [RegistrationController::class, 'index'])->name('registrations.index');
     Route::post('/registrations', [RegistrationController::class, 'store'])->name('registrations.store');
     Route::get('/payments', [PaymentController::class, 'index'])->name('payments.index');
