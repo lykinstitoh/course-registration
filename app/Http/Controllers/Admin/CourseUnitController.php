@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\CourseUnit;
+use App\Models\Programme;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -11,17 +12,22 @@ class CourseUnitController extends Controller
 {
     public function index()
     {
-        $courseUnits = CourseUnit::orderBy('semester_level')
-            ->orderBy('code')
-            ->get()
-            ->groupBy('semester_level');
+        $programmes = Programme::with(['courseUnits' => function($q) {
+            $q->orderBy('semester_level')->orderBy('code');
+        }])->where('is_active', true)->orderBy('name')->get();
 
-        return view('admin.course-units.index', compact('courseUnits'));
+        $unassignedUnits = CourseUnit::doesntHave('programmes')
+            ->orderBy('semester_level')
+            ->orderBy('code')
+            ->get();
+
+        return view('admin.course-units.index', compact('programmes', 'unassignedUnits'));
     }
 
     public function create()
     {
-        return view('admin.course-units.create');
+        $programmes = Programme::where('is_active', true)->orderBy('name')->get();
+        return view('admin.course-units.create', compact('programmes'));
     }
 
     public function store(Request $request)
@@ -33,16 +39,23 @@ class CourseUnitController extends Controller
             'capacity' => ['required', 'integer', 'min:1'],
             'semester_level' => ['required', 'integer', 'min:1'],
             'is_active' => ['boolean'],
+            'programme_ids' => ['nullable', 'array'],
+            'programme_ids.*' => ['exists:programmes,id'],
         ]);
 
-        CourseUnit::create($data);
+        $courseUnit = CourseUnit::create($data);
+
+        if (isset($data['programme_ids'])) {
+            $courseUnit->programmes()->sync($data['programme_ids']);
+        }
 
         return redirect()->route('admin.course-units.index')->with('success', 'Course unit created successfully.');
     }
 
     public function edit(CourseUnit $courseUnit)
     {
-        return view('admin.course-units.edit', compact('courseUnit'));
+        $programmes = Programme::where('is_active', true)->orderBy('name')->get();
+        return view('admin.course-units.edit', compact('courseUnit', 'programmes'));
     }
 
     public function update(Request $request, CourseUnit $courseUnit)
@@ -54,11 +67,19 @@ class CourseUnitController extends Controller
             'capacity' => ['required', 'integer', 'min:1'],
             'semester_level' => ['required', 'integer', 'min:1'],
             'is_active' => ['boolean'],
+            'programme_ids' => ['nullable', 'array'],
+            'programme_ids.*' => ['exists:programmes,id'],
         ]);
 
         $data['is_active'] = $request->has('is_active');
 
         $courseUnit->update($data);
+
+        if (isset($data['programme_ids'])) {
+            $courseUnit->programmes()->sync($data['programme_ids']);
+        } else {
+            $courseUnit->programmes()->sync([]);
+        }
 
         return redirect()->route('admin.course-units.index')->with('success', 'Course unit updated successfully.');
     }
