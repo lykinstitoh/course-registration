@@ -111,7 +111,8 @@ class PaymentController extends Controller
                   ->orWhere(function ($q2) {
                       $q2->whereNull('programme_id')->whereNull('award_level');
                   });
-            });
+            })
+            ->orderByDesc('created_at');
 
         if ($feeType) {
             $query->where('fee_type', $feeType);
