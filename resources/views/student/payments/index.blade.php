@@ -14,14 +14,14 @@
                         @csrf
                         <input type="hidden" name="fee_structure_id" value="{{ $fee->id }}">
                         <p><strong>{{ $fee->description }}</strong> — KES {{ number_format($fee->amount) }}</p>
-                        <div class="grid-2" style="margin-top:.5rem;">
-                            <select name="method" required onchange="togglePhone(this)">
-                                <option value="">Select Method</option>
+                        <div>
+                            <select name="method" required onchange="togglePhone(this)" style="margin-bottom:.5rem;">
+                                <option value="">-- Select Payment Method --</option>
                                 @foreach($activeMethods as $method)
                                     <option value="{{ $method->code }}">{{ $method->name }}</option>
                                 @endforeach
                             </select>
-                            <input type="text" name="phone" placeholder="M-Pesa phone (07XX)" style="display:none;">
+                            <input type="text" name="phone" value="{{ auth()->user()->phone }}" placeholder="M-Pesa phone (07XX)" style="display:none;">
                             <input type="text" name="bank_reference" placeholder="Bank Slip Reference No." style="display:none;">
                         </div>
                         <div class="bank-details" style="display:none; margin-top:1rem; padding:1rem; background:var(--surface); border:1px solid var(--border); border-radius:4px;">
@@ -66,7 +66,6 @@ function togglePhone(select) {
     
     phoneInput.style.display = 'none';
     phoneInput.required = false;
-    phoneInput.value = '';
 
     bankInput.style.display = 'none';
     bankInput.required = false;
