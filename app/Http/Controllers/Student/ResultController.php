@@ -9,7 +9,18 @@ class ResultController extends Controller
 {
     public function index()
     {
-        $results = Auth::user()->studentProfile
+        $profile = Auth::user()->studentProfile;
+        if (!$profile) {
+            return redirect()->route('student.dashboard')->with('error', 'You must complete your profile and registration first.');
+        }
+
+        $registration = $profile->registrations()->where('status', 'confirmed')->latest()->first();
+        
+        if (!$registration) {
+            return redirect()->route('student.dashboard')->with('error', 'You must have a confirmed course registration to view your results.');
+        }
+
+        $results = $profile
             ->results()
             ->with(['courseUnit', 'semester'])
             ->where('status', 'published')

@@ -15,12 +15,21 @@
                         <input type="hidden" name="fee_structure_id" value="{{ $fee->id }}">
                         <p><strong>{{ $fee->description }}</strong> — KES {{ number_format($fee->amount) }}</p>
                         <div class="grid-2" style="margin-top:.5rem;">
-                            <select name="method" required>
+                            <select name="method" required onchange="togglePhone(this)">
+                                <option value="">Select Method</option>
                                 @foreach($activeMethods as $method)
                                     <option value="{{ $method->code }}">{{ $method->name }}</option>
                                 @endforeach
                             </select>
-                            <input type="text" name="phone" placeholder="M-Pesa phone (07XX)">
+                            <input type="text" name="phone" placeholder="M-Pesa phone (07XX)" style="display:none;">
+                            <input type="text" name="bank_reference" placeholder="Bank Slip Reference No." style="display:none;">
+                        </div>
+                        <div class="bank-details" style="display:none; margin-top:1rem; padding:1rem; background:var(--surface); border:1px solid var(--border); border-radius:4px;">
+                            <h4 style="margin-bottom:.5rem;">Bank Account Details</h4>
+                            <p style="font-size:0.9rem; margin-bottom:0.25rem;"><strong>Bank Name:</strong> {{ $settings->get('bank_name') }}</p>
+                            <p style="font-size:0.9rem; margin-bottom:0.25rem;"><strong>Account Name:</strong> {{ $settings->get('bank_account_name') }}</p>
+                            <p style="font-size:0.9rem; margin-bottom:0.25rem;"><strong>Account No:</strong> {{ $settings->get('bank_account_number') }}</p>
+                            <p style="font-size:0.9rem; margin-bottom:0;"><strong>Branch:</strong> {{ $settings->get('bank_branch') }}</p>
                         </div>
                         <button class="btn btn-accent" type="submit" style="margin-top:.5rem;">Pay Now</button>
                     </form>
@@ -48,4 +57,31 @@
         </div>
     </div>
 </div>
+<script>
+function togglePhone(select) {
+    const form = select.closest('form');
+    const phoneInput = form.querySelector('input[name="phone"]');
+    const bankInput = form.querySelector('input[name="bank_reference"]');
+    const bankDetails = form.querySelector('.bank-details');
+    
+    phoneInput.style.display = 'none';
+    phoneInput.required = false;
+    phoneInput.value = '';
+
+    bankInput.style.display = 'none';
+    bankInput.required = false;
+    bankInput.value = '';
+
+    bankDetails.style.display = 'none';
+
+    if (select.value === 'mpesa') {
+        phoneInput.style.display = 'block';
+        phoneInput.required = true;
+    } else if (select.value === 'bank_transfer') {
+        bankInput.style.display = 'block';
+        bankInput.required = true;
+        bankDetails.style.display = 'block';
+    }
+}
+</script>
 @endsection

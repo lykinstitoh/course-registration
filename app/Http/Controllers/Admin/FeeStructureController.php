@@ -22,13 +22,18 @@ class FeeStructureController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'programme_id' => ['required', 'exists:programmes,id'],
+            'programme_id' => ['nullable', 'exists:programmes,id'],
+            'award_level' => ['nullable', 'string', 'in:certificate,diploma,degree,masters'],
             'intake_id' => ['required', 'exists:intakes,id'],
             'fee_type' => ['required', 'string'],
             'description' => ['required', 'string'],
             'amount' => ['required', 'numeric', 'min:0'],
             'is_mandatory' => ['boolean'],
         ]);
+
+        if (empty($data['programme_id']) && empty($data['award_level'])) {
+            return back()->withErrors(['programme_id' => 'You must select either a specific programme or an award level.'])->withInput();
+        }
 
         FeeStructure::create($data);
 

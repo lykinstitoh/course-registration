@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Student;
 use App\Enums\ApplicationStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Application;
+use App\Models\FeeStructure;
 use App\Models\Intake;
+use App\Models\Payment;
 use App\Models\Programme;
 use App\Services\AcademicRules\AcademicRulesEngine;
 use App\Services\Notifications\NotificationService;
@@ -111,18 +113,73 @@ class ApplicationController extends Controller
         $programme = Programme::findOrFail($data['programme_id']);
         $eligibility = $this->rulesEngine->checkKcseEligibility($profile, $programme);
 
+        // If rejected upfront, save as Rejected immediately
+        if (!$eligibility['eligible']) {
+            $application = Application::create([
+                'reference' => 'APP-'.strtoupper(Str::random(8)),
+                'student_profile_id' => $profile->id,
+                'programme_id' => $data['programme_id'],
+                'intake_id' => $data['intake_id'],
+                'campus_id' => $data['campus_id'] ?? null,
+                'status' => ApplicationStatus::Rejected,
+                'rejection_reason' => $eligibility['message'],
+                'submitted_at' => now(),
+            ]);
+            $this->notifications->notifyApplicationStatus(Auth::user(), $application->status->label(), $application->reference);
+            return redirect()->route('student.applications.index')->with('error', $eligibility['message']);
+        }
+
+        // Look for specific programme fee first
+        $appFee = FeeStructure::where('programme_id', $programme->id)
+            ->where('intake_id', $data['intake_id'])
+            ->where('fee_type', 'application')
+            ->where('is_mandatory', true)
+            ->first();
+
+        // If no specific fee, look for an award_level fee
+        if (!$appFee) {
+            $appFee = FeeStructure::whereNull('programme_id')
+                ->where('award_level', $programme->award_level)
+                ->where('intake_id', $data['intake_id'])
+                ->where('fee_type', 'application')
+                ->where('is_mandatory', true)
+                ->first();
+        }
+
+        // If still no fee, look for a universal fee
+        if (!$appFee) {
+            $appFee = FeeStructure::whereNull('programme_id')
+                ->whereNull('award_level')
+                ->where('intake_id', $data['intake_id'])
+                ->where('fee_type', 'application')
+                ->where('is_mandatory', true)
+                ->first();
+        }
+
+        $hasPaid = false;
+        if ($appFee) {
+            $hasPaid = Payment::where('student_profile_id', $profile->id)
+                ->where('fee_structure_id', $appFee->id)
+                ->where('status', \App\Enums\PaymentStatus::Completed)
+                ->exists();
+        }
+
+        $finalStatus = ($appFee && !$hasPaid) ? ApplicationStatus::PendingFee : ApplicationStatus::Submitted;
+
         $application = Application::create([
             'reference' => 'APP-'.strtoupper(Str::random(8)),
             'student_profile_id' => $profile->id,
             'programme_id' => $data['programme_id'],
             'intake_id' => $data['intake_id'],
             'campus_id' => $data['campus_id'] ?? null,
-            'status' => $eligibility['eligible']
-                ? ApplicationStatus::Submitted
-                : ApplicationStatus::Rejected,
-            'rejection_reason' => $eligibility['eligible'] ? null : $eligibility['message'],
+            'status' => $finalStatus,
             'submitted_at' => now(),
         ]);
+
+        if ($finalStatus === ApplicationStatus::PendingFee) {
+            return redirect()->route('student.payments.index')
+                ->with('warning', 'Your application is saved, but you must pay the application fee before it can be submitted.');
+        }
 
         $this->notifications->notifyApplicationStatus(
             Auth::user(),
@@ -131,6 +188,6 @@ class ApplicationController extends Controller
         );
 
         return redirect()->route('student.applications.index')
-            ->with($eligibility['eligible'] ? 'success' : 'error', $eligibility['message']);
+            ->with('success', 'Application submitted successfully.');
     }
 }

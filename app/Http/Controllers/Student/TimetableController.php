@@ -11,7 +11,15 @@ class TimetableController extends Controller
     public function index()
     {
         $profile = Auth::user()->studentProfile;
+        if (!$profile) {
+            return redirect()->route('student.dashboard')->with('error', 'You must complete your profile and registration first.');
+        }
+
         $registration = $profile->registrations()->where('status', 'confirmed')->latest()->first();
+        
+        if (!$registration) {
+            return redirect()->route('student.dashboard')->with('error', 'You must have a confirmed course registration to view your timetable.');
+        }
 
         $entries = collect();
         if ($registration) {

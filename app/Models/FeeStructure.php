@@ -9,6 +9,7 @@ class FeeStructure extends Model
 {
     protected $fillable = [
         'programme_id',
+        'award_level',
         'intake_id',
         'fee_type',
         'description',

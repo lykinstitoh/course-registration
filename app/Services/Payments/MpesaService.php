@@ -105,6 +105,8 @@ class MpesaService
                     $receipt
                 );
             }
+
+            $this->processApplicationFee($payment);
         } else {
             $payment->update([
                 'status' => PaymentStatus::Failed,
@@ -146,6 +148,8 @@ class MpesaService
                     $receipt
                 );
             }
+            
+            $this->processApplicationFee($payment);
         }
     }
 
@@ -210,5 +214,31 @@ class MpesaService
         ]);
 
         return ['success' => false, 'message' => $message];
+    }
+
+    private function processApplicationFee(Payment $payment): void
+    {
+        if ($payment->feeStructure && $payment->feeStructure->fee_type === 'application') {
+            $application = \App\Models\Application::where('student_profile_id', $payment->student_profile_id)
+                ->where('programme_id', $payment->feeStructure->programme_id)
+                ->where('intake_id', $payment->feeStructure->intake_id)
+                ->where('status', \App\Enums\ApplicationStatus::PendingFee)
+                ->first();
+
+            if ($application) {
+                $application->update([
+                    'status' => \App\Enums\ApplicationStatus::Submitted,
+                    'submitted_at' => now(),
+                ]);
+
+                if ($payment->studentProfile && $payment->studentProfile->user) {
+                    $this->notifications->notifyApplicationStatus(
+                        $payment->studentProfile->user,
+                        $application->status->label(),
+                        $application->reference
+                    );
+                }
+            }
+        }
     }
 }

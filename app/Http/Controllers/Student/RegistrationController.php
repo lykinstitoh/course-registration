@@ -24,7 +24,17 @@ class RegistrationController extends Controller
 
     public function index()
     {
-        $registrations = Auth::user()->studentProfile
+        $profile = Auth::user()->studentProfile;
+        if (!$profile) {
+            return redirect()->route('student.dashboard')->with('error', 'You must complete your profile and application first.');
+        }
+
+        $application = $profile->applications()->where('status', 'approved')->first();
+        if (!$application) {
+            return redirect()->route('student.dashboard')->with('error', 'You must be admitted to an approved programme to register for courses.');
+        }
+
+        $registrations = $profile
             ->registrations()
             ->with(['semester.intake', 'items.courseUnit'])
             ->latest()
@@ -35,7 +45,7 @@ class RegistrationController extends Controller
             ->first();
 
         $courseUnits = $activeSemester
-            ? CourseUnit::where('is_active', true)->orderBy('code')->get()
+            ? $application->programme->courseUnits()->where('course_units.is_active', true)->orderBy('course_units.code')->get()
             : collect();
 
         return view('student.registrations.index', compact(

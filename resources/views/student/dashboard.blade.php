@@ -34,6 +34,7 @@
                     $steps = ['Draft', 'Submitted', 'Under Review', 'Approved'];
                     $currentStatusLabel = $application->status->label();
                     $currentIndex = array_search($currentStatusLabel, $steps);
+                    if ($currentStatusLabel === 'Pending Application Fee') $currentIndex = 0;
                     if ($currentStatusLabel === 'Waitlisted' || $currentStatusLabel === 'More Information Required') $currentIndex = 2;
                     if ($currentStatusLabel === 'Rejected' || $currentStatusLabel === 'Withdrawn') $currentIndex = -1;
                 @endphp
@@ -44,10 +45,13 @@
                     </div>
                 @endforeach
             </div>
-            @if(in_array($currentStatusLabel, ['Waitlisted', 'More Information Required', 'Rejected']))
+            @if(in_array($currentStatusLabel, ['Waitlisted', 'More Information Required', 'Rejected', 'Pending Application Fee']))
                 <div class="mt-4" style="padding: 1rem; background: #fff3cd; border-radius: 4px; color: #856404;">
                     <strong>Attention:</strong> Your application is currently <u>{{ $currentStatusLabel }}</u>. 
                     @if($application->rejection_reason) <br> Reason: {{ $application->rejection_reason }} @endif
+                    @if($currentStatusLabel === 'Pending Application Fee')
+                        <br><br><a href="{{ route('student.payments.index') }}" class="btn" style="background:#856404;color:white;border:none;">Pay Application Fee</a>
+                    @endif
                 </div>
             @endif
             @if($currentStatusLabel === 'Approved')

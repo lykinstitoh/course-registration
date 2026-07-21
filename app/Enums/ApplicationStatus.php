@@ -5,6 +5,7 @@ namespace App\Enums;
 enum ApplicationStatus: string
 {
     case Draft = 'draft';
+    case PendingFee = 'pending_fee';
     case Submitted = 'submitted';
     case UnderReview = 'under_review';
     case Approved = 'approved';
@@ -17,6 +18,7 @@ enum ApplicationStatus: string
     {
         return match ($this) {
             self::Draft => 'Draft',
+            self::PendingFee => 'Pending Application Fee',
             self::Submitted => 'Submitted',
             self::UnderReview => 'Under Review',
             self::Approved => 'Approved',
