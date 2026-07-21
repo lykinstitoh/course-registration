@@ -7,8 +7,11 @@
     <div>
         <h1 style="color:var(--primary);margin-bottom:1rem;">Course Unit Registration</h1>
         @if($activeSemester)
-            <div class="card">
-                <h3>{{ $activeSemester->name }} — Deadline: {{ $activeSemester->registration_deadline->format('d M Y') }}</h3>
+            <div class="card" style="margin-bottom:2rem;">
+                <h2 style="color:var(--primary);margin-bottom:1rem;">
+                    Register for {{ $activeSemester->name }} 
+                    <span class="badge" style="background:#e0e7ff; color:#3730a3; margin-left:1rem;">Current Level: Semester {{ $currentSemesterLevel }}</span>
+                </h2>
                 <form method="POST" action="{{ route('student.registrations.store') }}">
                     @csrf
                     <input type="hidden" name="semester_id" value="{{ $activeSemester->id }}">

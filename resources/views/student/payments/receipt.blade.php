@@ -19,7 +19,7 @@
 </head>
 <body>
     <div class="header">
-        <h1>{{ config('app.name', 'OCRS University') }}</h1>
+        <h1>{{ config('ocrs.institution_name', 'OCRS University') }}</h1>
         <p>Official Payment Receipt</p>
     </div>
 
@@ -69,7 +69,7 @@
 
     <div class="footer">
         <p>This is a computer generated receipt and does not require a signature.</p>
-        <p>&copy; {{ date('Y') }} {{ config('app.name', 'OCRS University') }}. All rights reserved.</p>
+        <p>&copy; {{ date('Y') }} {{ config('ocrs.institution_name', 'OCRS University') }}. All rights reserved.</p>
     </div>
 </body>
 </html>

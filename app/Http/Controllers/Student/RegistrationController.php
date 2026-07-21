@@ -48,14 +48,21 @@ class RegistrationController extends Controller
             ->where('registration_deadline', '>=', now())
             ->first();
 
+        $currentSemesterLevel = $profile->getCurrentSemesterLevel();
+
         $courseUnits = $activeSemester
-            ? $application->programme->courseUnits()->where('course_units.is_active', true)->orderBy('course_units.code')->get()
+            ? $application->programme->courseUnits()
+                ->where('course_units.is_active', true)
+                ->where('course_units.semester_level', $currentSemesterLevel)
+                ->orderBy('course_units.code')
+                ->get()
             : collect();
 
         return view('student.registrations.index', compact(
             'registrations',
             'activeSemester',
-            'courseUnits'
+            'courseUnits',
+            'currentSemesterLevel'
         ));
     }
 
@@ -76,9 +83,17 @@ class RegistrationController extends Controller
             return redirect()->route('student.enrollment.index')->with('warning', 'You must complete your enrollment checklist before registering for courses.');
         }
 
+        $currentSemesterLevel = $profile->getCurrentSemesterLevel();
+        
         $failed = [];
         foreach ($data['course_unit_ids'] as $unitId) {
             $unit = CourseUnit::find($unitId);
+            
+            if ($unit->semester_level !== $currentSemesterLevel) {
+                $failed[] = "{$unit->code}: You can only register for courses in your current semester level (Level {$currentSemesterLevel}).";
+                continue;
+            }
+
             $result = $this->rulesEngine->validateRegistration(
                 $profile,
                 $unit,

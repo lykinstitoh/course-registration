@@ -209,4 +209,22 @@ class ApplicationController extends Controller
 
         return back()->with('success', 'Application cancelled successfully.');
     }
+
+    public function downloadLetter(Application $application)
+    {
+        if ($application->student_profile_id !== Auth::user()->studentProfile->id) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        if ($application->status !== ApplicationStatus::Approved) {
+            return back()->with('error', 'Admission letter is only available for approved applications.');
+        }
+
+        $letter = \App\Models\AdmissionLetter::where('application_id', $application->id)->first();
+        if (!$letter || !\Illuminate\Support\Facades\Storage::disk('public')->exists($letter->letter_path)) {
+            return back()->with('error', 'Admission letter not found.');
+        }
+
+        return \Illuminate\Support\Facades\Storage::disk('public')->download($letter->letter_path);
+    }
 }
