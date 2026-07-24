@@ -11,8 +11,16 @@ class MpesaWebhookController extends Controller
 
     public function stkCallback(Request $request)
     {
-        $this->mpesa->handleStkCallback($request->all());
+        try {
+            $this->mpesa->handleStkCallback($request->all());
+        } catch (\Throwable $exception) {
+            \Illuminate\Support\Facades\Log::error('M-Pesa STK callback handling failed', [
+                'error' => $exception->getMessage(),
+                'payload' => $request->all(),
+            ]);
+        }
 
+        // Always acknowledge so Safaricom does not retry forever.
         return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
     }
 
