@@ -11,6 +11,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Trust reverse proxies (ngrok, Cloudflare, load balancers) so
+        // X-Forwarded-Proto is honored when generating absolute URLs.
+        $middleware->trustProxies(at: '*');
+
         // Daraja calls these endpoints directly and cannot supply Laravel's
         // browser CSRF token.
         $middleware->validateCsrfTokens(except: [
