@@ -18,13 +18,23 @@
                         <td>{{ $app->status->label() }}</td>
                         <td>
                             @if(in_array($app->status->value, ['submitted', 'under_review']))
-                                <form method="POST" action="{{ route('admin.applications.review', $app) }}" style="display:inline;">@csrf<input type="hidden" name="action" value="approve"><button class="btn btn-primary" type="submit" onclick="return confirm('Approve this application?');">Approve</button></form>
-                                <form method="POST" action="{{ route('admin.applications.review', $app) }}" style="display:inline;margin-left:.25rem;" onsubmit="return handleReject(this);">
-                                    @csrf
-                                    <input type="hidden" name="action" value="reject">
-                                    <input type="hidden" name="rejection_reason" class="reason-input">
-                                    <button class="btn btn-outline" style="color:var(--danger); border-color:var(--danger);" type="submit">Reject</button>
-                                </form>
+                                <a href="{{ route('admin.applications.show', $app) }}" class="btn btn-primary btn-sm">Review Details</a>
+                            @elseif($app->status->value === 'pending_fee')
+                                @php
+                                    $hasBankTransfer = $app->studentProfile->payments->contains(function($p) {
+                                        return $p->status === \App\Enums\PaymentStatus::Pending 
+                                            && $p->method === 'bank_transfer' 
+                                            && $p->feeStructure 
+                                            && $p->feeStructure->fee_type === 'application';
+                                    });
+                                @endphp
+                                @if($hasBankTransfer)
+                                    <a href="{{ route('admin.applications.show', $app) }}" class="badge" style="background:#fef3c7; color:#92400e; text-decoration:none;">Pending Bank Transfer</a>
+                                @else
+                                    <a href="{{ route('admin.applications.show', $app) }}" style="color:#6b7280; font-size:0.875rem; text-decoration:none;">Awaiting Payment</a>
+                                @endif
+                            @else
+                                <a href="{{ route('admin.applications.show', $app) }}" class="btn btn-outline btn-sm">View</a>
                             @endif
                         </td>
                     </tr>
@@ -34,14 +44,4 @@
         {{ $applications->links() }}
     </div>
 </div>
-<script>
-function handleReject(form) {
-    const reason = prompt("Please enter the reason for rejection:");
-    if (!reason) {
-        return false; // Cancel submission if no reason provided
-    }
-    form.querySelector('.reason-input').value = reason;
-    return true;
-}
-</script>
 @endsection

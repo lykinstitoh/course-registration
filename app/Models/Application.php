@@ -60,4 +60,14 @@ class Application extends Model
     {
         return $this->belongsTo(Campus::class);
     }
+
+    public function statusHistory(): HasMany
+    {
+        return $this->hasMany(ApplicationStatusHistory::class)->latest();
+    }
+
+    public function admissionLetter()
+    {
+        return $this->hasOne(AdmissionLetter::class);
+    }
 }
