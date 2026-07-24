@@ -22,13 +22,24 @@ class PaymentController extends Controller
     public function index()
     {
         $profile = Auth::user()->studentProfile;
+
+        // Reconcile stuck M-Pesa STK payments first (callback may have been delayed/missed on Railway).
+        $processingPayments = $profile->payments()
+            ->where('status', PaymentStatus::Processing)
+            ->whereNotNull('mpesa_checkout_request_id')
+            ->get();
+
+        foreach ($processingPayments as $payment) {
+            $this->mpesa->queryStkStatus($payment);
+        }
+
         $payments = $profile->payments()->with('feeStructure')->latest()->get();
 
         $activeApps = $profile->applications()
             ->with('programme')
             ->whereIn('status', ['approved', 'pending_fee'])
             ->get();
-        
+
         $fees = collect();
 
         foreach ($activeApps as $app) {
@@ -40,27 +51,24 @@ class PaymentController extends Controller
             }
 
             foreach ($appFees as $fee) {
-                // Attach the programme context so the UI can differentiate multiple applications
                 $fee->application_context = $app->programme->name;
-                
-                // Avoid duplicating the exact same fee structure in the collection
-                if (!$fees->contains('id', $fee->id)) {
+
+                if (! $fees->contains('id', $fee->id)) {
                     $fees->push($fee);
                 }
             }
         }
 
-        // Prevent double payments: filter out fees that are already Completed or Pending
-        $activePaymentFeeIds = $payments->whereIn('status', [\App\Enums\PaymentStatus::Completed, \App\Enums\PaymentStatus::Pending])
-                                        ->pluck('fee_structure_id')
-                                        ->toArray();
-                                        
-        $fees = $fees->reject(function ($fee) use ($activePaymentFeeIds) {
-            return in_array($fee->id, $activePaymentFeeIds);
-        });
+        $activePaymentFeeIds = $payments->whereIn('status', [
+            PaymentStatus::Completed,
+            PaymentStatus::Pending,
+            PaymentStatus::Processing,
+        ])->pluck('fee_structure_id')->toArray();
+
+        $fees = $fees->reject(fn ($fee) => in_array($fee->id, $activePaymentFeeIds));
 
         // Ensure bank details exist in settings
-        if (!\App\Models\SystemSetting::where('key', 'bank_name')->exists()) {
+        if (! \App\Models\SystemSetting::where('key', 'bank_name')->exists()) {
             \App\Models\SystemSetting::insert([
                 ['group' => 'payment', 'key' => 'bank_name', 'value' => 'Equity Bank', 'type' => 'string'],
                 ['group' => 'payment', 'key' => 'bank_account_name', 'value' => 'OCRS University', 'type' => 'string'],
@@ -72,13 +80,15 @@ class PaymentController extends Controller
         $settings = \App\Models\SystemSetting::where('group', 'payment')->pluck('value', 'key');
         $activeMethods = collect();
         if ($settings->get('enable_mpesa') == '1') {
-            $activeMethods->push((object)['code' => 'mpesa', 'name' => 'M-Pesa']);
+            $activeMethods->push((object) ['code' => 'mpesa', 'name' => 'M-Pesa']);
         }
         if ($settings->get('enable_bank_transfer') == '1') {
-            $activeMethods->push((object)['code' => 'bank_transfer', 'name' => 'Bank Transfer']);
+            $activeMethods->push((object) ['code' => 'bank_transfer', 'name' => 'Bank Transfer']);
         }
 
-        return view('student.payments.index', compact('payments', 'fees', 'activeMethods', 'settings'));
+        $awaitingPaymentId = request('awaiting');
+
+        return view('student.payments.index', compact('payments', 'fees', 'activeMethods', 'settings', 'awaitingPaymentId'));
     }
 
     public function initiate(Request $request)
@@ -145,10 +155,46 @@ class PaymentController extends Controller
         if ($data['method'] === 'mpesa') {
             $result = $this->mpesa->initiateStkPush($payment, $data['phone']);
 
-            return back()->with($result['success'] ? 'success' : 'error', $result['message']);
+            if ($result['success']) {
+                return redirect()
+                    ->route('student.payments.index', ['awaiting' => $payment->id])
+                    ->with('success', ($result['message'] ?? 'STK Push sent.').' Confirm on your phone — this page will refresh the status automatically.');
+            }
+
+            return back()->with('error', $result['message']);
         }
 
         return back()->with('success', "Bank transfer logged successfully with reference {$payment->bank_reference}. It is currently under review by our finance team.");
+    }
+
+    public function status(Request $request, Payment $payment)
+    {
+        $profile = Auth::user()->studentProfile;
+        if ($payment->student_profile_id !== $profile->id) {
+            abort(403);
+        }
+
+        $result = ['success' => true, 'status' => $payment->status->value, 'message' => 'Current status loaded.'];
+
+        if ($payment->status === PaymentStatus::Processing && filled($payment->mpesa_checkout_request_id)) {
+            $result = $this->mpesa->queryStkStatus($payment);
+            $payment->refresh();
+        }
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => $result['success'],
+                'status' => $payment->status->value,
+                'label' => $payment->status->label(),
+                'message' => $result['message'],
+                'receipt' => $payment->mpesa_receipt,
+                'reference' => $payment->reference,
+            ]);
+        }
+
+        return redirect()
+            ->route('student.payments.index')
+            ->with($result['success'] && $payment->status === PaymentStatus::Completed ? 'success' : 'warning', $result['message']);
     }
 
     private function getApplicableFees($app, $feeType = null)

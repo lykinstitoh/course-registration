@@ -5,6 +5,8 @@ return [
     'consumer_secret' => env('MPESA_CONSUMER_SECRET'),
     'shortcode' => env('MPESA_SHORTCODE'),
     'passkey' => env('MPESA_PASSKEY'),
+    // Prefer an absolute HTTPS URL. On Railway set this explicitly — ${APP_URL}
+    // interpolation from .env.example is often left unresolved in the host UI.
     'callback_url' => env('MPESA_CALLBACK_URL'),
     'confirmation_url' => env('MPESA_CONFIRMATION_URL'),
     'validation_url' => env('MPESA_VALIDATION_URL'),
