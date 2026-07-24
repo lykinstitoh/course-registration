@@ -23,14 +23,17 @@ class PaymentController extends Controller
     {
         $profile = Auth::user()->studentProfile;
 
-        // Reconcile stuck M-Pesa STK payments first (callback may have been delayed/missed on Railway).
+        // Reconcile / expire stuck M-Pesa STK payments first.
         $processingPayments = $profile->payments()
             ->where('status', PaymentStatus::Processing)
-            ->whereNotNull('mpesa_checkout_request_id')
             ->get();
 
         foreach ($processingPayments as $payment) {
-            $this->mpesa->queryStkStatus($payment);
+            if (filled($payment->mpesa_checkout_request_id)) {
+                $this->mpesa->queryStkStatus($payment);
+            } else {
+                $this->mpesa->cancelStalePayment($payment, 'Incomplete STK attempt cleared.');
+            }
         }
 
         $payments = $profile->payments()->with('feeStructure')->latest()->get();
@@ -131,14 +134,48 @@ class PaymentController extends Controller
             abort(403, 'This fee structure does not apply to your application.');
         }
 
-        // Prevent duplicate pending/completed payments for the same fee
-        $alreadyActive = Payment::where('student_profile_id', $profile->id)
+        // Prevent duplicate pending/completed payments for the same fee.
+        // Auto-clear timed-out processing STK attempts so retries are not blocked forever.
+        $blocking = Payment::where('student_profile_id', $profile->id)
             ->where('fee_structure_id', $fee->id)
             ->whereIn('status', [PaymentStatus::Completed, PaymentStatus::Pending, PaymentStatus::Processing])
-            ->exists();
+            ->latest()
+            ->first();
 
-        if ($alreadyActive) {
-            return back()->with('error', 'You already have an active or completed payment for this fee.');
+        if ($blocking) {
+            if ($blocking->status === PaymentStatus::Completed) {
+                return back()->with('error', 'This fee is already paid.');
+            }
+
+            if ($blocking->status === PaymentStatus::Processing) {
+                $this->mpesa->queryStkStatus($blocking);
+                $blocking->refresh();
+
+                if ($blocking->status === PaymentStatus::Completed) {
+                    return redirect()
+                        ->route('student.payments.index')
+                        ->with('success', 'Your previous M-Pesa payment was confirmed.');
+                }
+
+                if ($blocking->status === PaymentStatus::Processing) {
+                    // Still within the STK window — ask student to finish or cancel.
+                    if (! $this->mpesa->expireIfTimedOut($blocking, 90)) {
+                        return redirect()
+                            ->route('student.payments.index', ['awaiting' => $blocking->id])
+                            ->with('warning', 'A payment is already in progress. Complete the M-Pesa prompt on your phone, or cancel it below and try again.');
+                    }
+                    $blocking->refresh();
+                }
+            }
+
+            if ($blocking->status === PaymentStatus::Pending && $blocking->method === 'bank_transfer') {
+                return back()->with('error', 'You already have a pending bank transfer for this fee awaiting finance review.');
+            }
+
+            // Timed-out / failed processing no longer blocks.
+            if (in_array($blocking->status, [PaymentStatus::Completed, PaymentStatus::Pending], true)) {
+                return back()->with('error', 'You already have an active or completed payment for this fee.');
+            }
         }
 
         $payment = Payment::create([
@@ -195,6 +232,41 @@ class PaymentController extends Controller
         return redirect()
             ->route('student.payments.index')
             ->with($result['success'] && $payment->status === PaymentStatus::Completed ? 'success' : 'warning', $result['message']);
+    }
+
+    public function cancel(Payment $payment)
+    {
+        $profile = Auth::user()->studentProfile;
+        if ($payment->student_profile_id !== $profile->id) {
+            abort(403);
+        }
+
+        if (! in_array($payment->status, [PaymentStatus::Pending, PaymentStatus::Processing], true)) {
+            return back()->with('error', 'Only pending or processing payments can be cancelled.');
+        }
+
+        // Bank transfers pending finance review should stay until finance acts,
+        // unless the student explicitly cancels an unfinished M-Pesa attempt.
+        if ($payment->status === PaymentStatus::Pending && $payment->method === 'bank_transfer') {
+            return back()->with('error', 'Pending bank transfers are reviewed by finance. Contact support if you need help.');
+        }
+
+        // One last status check in case money already went through.
+        if ($payment->status === PaymentStatus::Processing && filled($payment->mpesa_checkout_request_id)) {
+            $check = $this->mpesa->queryStkStatus($payment);
+            $payment->refresh();
+            if ($payment->status === PaymentStatus::Completed) {
+                return redirect()
+                    ->route('student.payments.index')
+                    ->with('success', $check['message'] ?? 'Payment was already completed.');
+            }
+        }
+
+        $this->mpesa->cancelStalePayment($payment);
+
+        return redirect()
+            ->route('student.payments.index')
+            ->with('success', 'Payment cancelled. You can pay this fee again now.');
     }
 
     private function getApplicableFees($app, $feeType = null)

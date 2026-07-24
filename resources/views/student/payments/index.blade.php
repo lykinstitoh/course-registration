@@ -70,11 +70,19 @@
                             <td>
                                 @if($payment->status->value === 'completed')
                                     <a href="{{ route('student.payments.receipt', $payment) }}" class="btn btn-sm btn-outline" target="_blank">Download PDF</a>
-                                @elseif($payment->status->value === 'processing' && $payment->mpesa_checkout_request_id)
-                                    <form method="POST" action="{{ route('student.payments.status', $payment) }}" style="display:inline;" class="status-check-form">
-                                        @csrf
-                                        <button class="btn btn-sm btn-outline" type="submit">Check status</button>
-                                    </form>
+                                @elseif(in_array($payment->status->value, ['processing', 'pending'], true) && $payment->method !== 'bank_transfer')
+                                    <div style="display:flex; gap:.35rem; flex-wrap:wrap;">
+                                        @if($payment->status->value === 'processing' && $payment->mpesa_checkout_request_id)
+                                            <form method="POST" action="{{ route('student.payments.status', $payment) }}" style="display:inline;" class="status-check-form">
+                                                @csrf
+                                                <button class="btn btn-sm btn-outline" type="submit">Check status</button>
+                                            </form>
+                                        @endif
+                                        <form method="POST" action="{{ route('student.payments.cancel', $payment) }}" style="display:inline;" onsubmit="return confirm('Cancel this payment attempt so you can try again?');">
+                                            @csrf
+                                            <button class="btn btn-sm btn-outline" type="submit" style="color:var(--danger);border-color:var(--danger);">Cancel &amp; retry</button>
+                                        </form>
+                                    </div>
                                 @else
                                     —
                                 @endif
@@ -187,7 +195,7 @@ function togglePhone(select) {
             if (completed) {
                 setTimeout(() => window.location.href = @json(route('student.payments.index')), 1200);
             } else if (attempts >= maxAttempts) {
-                note.textContent = 'Still waiting for M-Pesa. Use “Check status” or refresh this page in a moment.';
+                note.textContent = 'Still waiting for M-Pesa. Click “Check status”, or “Cancel & retry” if the phone prompt expired.';
             }
         }
     }, 5000);

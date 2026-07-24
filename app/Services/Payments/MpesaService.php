@@ -117,7 +117,18 @@ class MpesaService
         }
 
         if (blank($payment->mpesa_checkout_request_id)) {
-            return ['success' => false, 'status' => $payment->status->value, 'message' => 'No M-Pesa checkout reference found for this payment.'];
+            $this->cancelStalePayment($payment, 'Missing M-Pesa checkout reference.');
+
+            return ['success' => false, 'status' => 'failed', 'message' => 'Payment attempt was incomplete. You can pay again.'];
+        }
+
+        // STK prompts expire quickly; don't leave payments blocking retries forever.
+        if ($this->expireIfTimedOut($payment)) {
+            return [
+                'success' => false,
+                'status' => 'failed',
+                'message' => 'M-Pesa prompt timed out. You can pay again.',
+            ];
         }
 
         try {
@@ -141,15 +152,40 @@ class MpesaService
                 'error' => $exception->getMessage(),
             ]);
 
+            if ($this->expireIfTimedOut($payment)) {
+                return [
+                    'success' => false,
+                    'status' => 'failed',
+                    'message' => 'M-Pesa prompt timed out. You can pay again.',
+                ];
+            }
+
             return ['success' => false, 'status' => 'processing', 'message' => 'Could not verify payment with M-Pesa yet. Please wait and try again.'];
         }
 
         $data = $response->json() ?? [];
         Log::info('M-Pesa STK query response', ['payment_id' => $payment->id, 'response' => $data]);
 
-        // Still waiting / request accepted but not final
         $resultCode = $data['ResultCode'] ?? null;
         if ($resultCode === null) {
+            $errorMessage = strtolower((string) ($data['errorMessage'] ?? $data['ResponseDescription'] ?? ''));
+            if (str_contains($errorMessage, 'transaction has expired')
+                || str_contains($errorMessage, 'the transaction is invalid')
+                || str_contains($errorMessage, 'does not exist')
+                || ($data['errorCode'] ?? null) === '500.001.1001') {
+                $this->failPayment($payment, $data['errorMessage'] ?? 'M-Pesa transaction expired. Please pay again.', $data);
+
+                return ['success' => false, 'status' => 'failed', 'message' => 'M-Pesa transaction expired. You can pay again.'];
+            }
+
+            if ($this->expireIfTimedOut($payment)) {
+                return [
+                    'success' => false,
+                    'status' => 'failed',
+                    'message' => 'M-Pesa prompt timed out. You can pay again.',
+                ];
+            }
+
             return [
                 'success' => true,
                 'status' => 'processing',
@@ -159,8 +195,16 @@ class MpesaService
 
         $code = (int) $resultCode;
 
-        // 4999 / 1037 etc. often mean still pending depending on Daraja version
+        // Still pending on the phone
         if (in_array($code, [4999, 1037], true)) {
+            if ($this->expireIfTimedOut($payment)) {
+                return [
+                    'success' => false,
+                    'status' => 'failed',
+                    'message' => 'M-Pesa prompt timed out. You can pay again.',
+                ];
+            }
+
             return [
                 'success' => true,
                 'status' => 'processing',
@@ -188,6 +232,47 @@ class MpesaService
             'status' => 'processing',
             'message' => $data['ResultDesc'] ?? 'Payment is still processing.',
         ];
+    }
+
+    /**
+     * Mark abandoned STK attempts as failed so students can retry the same fee.
+     * Safaricom prompts typically expire within about a minute.
+     */
+    public function expireIfTimedOut(Payment $payment, int $seconds = 90): bool
+    {
+        if ($payment->status !== PaymentStatus::Processing) {
+            return false;
+        }
+
+        $startedAt = $payment->updated_at ?? $payment->created_at;
+        if (! $startedAt || $startedAt->gt(now()->subSeconds($seconds))) {
+            return false;
+        }
+
+        $payment->update([
+            'status' => PaymentStatus::Failed,
+            'gateway_response' => array_merge(
+                is_array($payment->gateway_response) ? $payment->gateway_response : [],
+                ['local_timeout' => true, 'message' => 'STK prompt timed out locally after '.$seconds.' seconds.']
+            ),
+        ]);
+
+        return true;
+    }
+
+    public function cancelStalePayment(Payment $payment, string $reason = 'Cancelled by student to retry payment.'): void
+    {
+        if (! in_array($payment->status, [PaymentStatus::Pending, PaymentStatus::Processing], true)) {
+            return;
+        }
+
+        $payment->update([
+            'status' => PaymentStatus::Failed,
+            'gateway_response' => array_merge(
+                is_array($payment->gateway_response) ? $payment->gateway_response : [],
+                ['cancelled' => true, 'message' => $reason]
+            ),
+        ]);
     }
 
     private function applyStkResult(Payment $payment, array $result, int $resultCode): void
