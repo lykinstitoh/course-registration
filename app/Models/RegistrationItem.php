@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class RegistrationItem extends Model
 {
+    public $timestamps = false;
+
     protected $fillable = [
         'registration_id',
         'course_unit_id',

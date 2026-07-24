@@ -221,8 +221,30 @@ class ApplicationController extends Controller
         }
 
         $letter = \App\Models\AdmissionLetter::where('application_id', $application->id)->first();
+        
+        // Generate on the fly if missing or file doesn't exist
         if (!$letter || !\Illuminate\Support\Facades\Storage::disk('public')->exists($letter->letter_path)) {
-            return back()->with('error', 'Admission letter not found.');
+            // Ensure they have an admission number first
+            if (empty($application->studentProfile->admission_number)) {
+                $application->studentProfile->update([
+                    'admission_number' => config('ocrs.institution_code', 'OCRS').'-'.str_pad($application->id, 5, '0', STR_PAD_LEFT),
+                ]);
+            }
+
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.admission_letter', compact('application'));
+            $path = 'letters/admission_'.$application->reference.'.pdf';
+            \Illuminate\Support\Facades\Storage::disk('public')->put($path, $pdf->output());
+
+            if (!$letter) {
+                $letter = \App\Models\AdmissionLetter::create([
+                    'student_profile_id' => $application->student_profile_id,
+                    'application_id' => $application->id,
+                    'letter_path' => $path,
+                    'generated_at' => now(),
+                ]);
+            } else {
+                $letter->update(['letter_path' => $path, 'generated_at' => now()]);
+            }
         }
 
         return \Illuminate\Support\Facades\Storage::disk('public')->download($letter->letter_path);
