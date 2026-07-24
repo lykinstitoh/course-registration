@@ -10,7 +10,7 @@
             <div class="card">
                 <h3>Pay Fees</h3>
                 @foreach($fees as $fee)
-                    <form method="POST" action="{{ route('student.payments.initiate') }}" style="border-bottom:1px solid var(--border);padding:1rem 0;">
+                    <form method="POST" action="{{ route('student.payments.initiate') }}" enctype="multipart/form-data" style="border-bottom:1px solid var(--border);padding:1rem 0;">
                         @csrf
                         <input type="hidden" name="fee_structure_id" value="{{ $fee->id }}">
                         <p><strong>{{ $fee->description }}</strong> — KES {{ number_format($fee->amount) }}</p>
@@ -21,8 +21,12 @@
                                     <option value="{{ $method->code }}">{{ $method->name }}</option>
                                 @endforeach
                             </select>
-                            <input type="text" name="phone" value="{{ auth()->user()->phone }}" placeholder="M-Pesa phone (07XX)" style="display:none;">
-                            <input type="text" name="bank_reference" placeholder="Bank Slip Reference No." style="display:none;">
+                            <input type="text" name="phone" value="{{ auth()->user()->phone }}" placeholder="M-Pesa phone (07XX)" style="display:none; margin-top:.5rem;">
+                            <input type="text" name="bank_reference" placeholder="Bank Slip Reference No." style="display:none; margin-top:.5rem;">
+                            <div class="receipt-upload" style="display:none; margin-top:.5rem;">
+                                <label style="display:block;font-size:0.9rem;margin-bottom:.25rem;">Attach Bank Receipt (PDF/Image)</label>
+                                <input type="file" name="receipt" accept="image/*,.pdf" style="display:block;">
+                            </div>
                         </div>
                         <div class="bank-details" style="display:none; margin-top:1rem; padding:1rem; background:var(--surface); border:1px solid var(--border); border-radius:4px;">
                             <h4 style="margin-bottom:.5rem;">Bank Account Details</h4>
@@ -77,6 +81,10 @@ function togglePhone(select) {
     bankInput.style.display = 'none';
     bankInput.required = false;
     bankInput.value = '';
+    
+    const receiptUpload = form.querySelector('.receipt-upload');
+    receiptUpload.style.display = 'none';
+    form.querySelector('input[name="receipt"]').required = false;
 
     bankDetails.style.display = 'none';
 
@@ -86,6 +94,8 @@ function togglePhone(select) {
     } else if (select.value === 'bank_transfer') {
         bankInput.style.display = 'block';
         bankInput.required = true;
+        receiptUpload.style.display = 'block';
+        form.querySelector('input[name="receipt"]').required = true;
         bankDetails.style.display = 'block';
     }
 }

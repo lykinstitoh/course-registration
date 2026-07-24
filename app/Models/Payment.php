@@ -15,6 +15,7 @@ class Payment extends Model
         'amount',
         'currency',
         'method',
+        'receipt_path',
         'status',
         'mpesa_receipt',
         'mpesa_checkout_request_id',

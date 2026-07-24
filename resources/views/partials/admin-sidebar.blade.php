@@ -5,6 +5,7 @@
         <a href="{{ route('admin.course-units.index') }}" class="{{ ($active ?? '') === 'course-units' ? 'active' : '' }}">Course Units</a>
         <a href="{{ route('admin.intakes.index') }}" class="{{ ($active ?? '') === 'intakes' ? 'active' : '' }}">Intakes</a>
         <a href="{{ route('admin.fees.index') }}" class="{{ ($active ?? '') === 'fees' ? 'active' : '' }}">Fee Structures</a>
+        <a href="{{ route('admin.payments.index') }}" class="{{ ($active ?? '') === 'payments' ? 'active' : '' }}">Payments</a>
         <a href="{{ route('admin.documents.index') }}" class="{{ ($active ?? '') === 'documents' ? 'active' : '' }}">Documents</a>
         <a href="{{ route('admin.reports.index') }}" class="{{ ($active ?? '') === 'reports' ? 'active' : '' }}">Reports</a>
         <a href="{{ route('admin.campuses.index') }}" class="{{ ($active ?? '') === 'campuses' ? 'active' : '' }}">Campuses</a>

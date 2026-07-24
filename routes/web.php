@@ -57,6 +57,7 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
 Route::middleware(['auth', 'role:registrar,finance,academic_staff,admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
     Route::get('/applications', [ApplicationReviewController::class, 'index'])->name('applications.index');
+    Route::get('/applications/{application}', [ApplicationReviewController::class, 'show'])->name('applications.show');
     Route::post('/applications/{application}/review', [ApplicationReviewController::class, 'review'])->name('applications.review');
     Route::get('/intakes', [IntakeController::class, 'index'])->name('intakes.index');
     Route::post('/intakes', [IntakeController::class, 'store'])->name('intakes.store');
@@ -65,6 +66,10 @@ Route::middleware(['auth', 'role:registrar,finance,academic_staff,admin'])->pref
     Route::delete('/fees/{fee}', [FeeStructureController::class, 'destroy'])->name('fees.destroy');
     Route::get('/documents', [DocumentReviewController::class, 'index'])->name('documents.index');
     Route::post('/documents/{document}/review', [DocumentReviewController::class, 'review'])->name('documents.review');
+    
+    Route::get('/payments', [\App\Http\Controllers\Admin\PaymentController::class, 'index'])->name('payments.index');
+    Route::post('/payments/{payment}/review', [\App\Http\Controllers\Admin\PaymentController::class, 'review'])->name('payments.review');
+
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     
     Route::resource('campuses', \App\Http\Controllers\Admin\CampusController::class);

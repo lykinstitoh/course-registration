@@ -15,11 +15,32 @@ class ApplicationReviewController extends Controller
 
     public function index()
     {
-        $applications = Application::with(['studentProfile.user', 'programme', 'intake'])
+        $applications = Application::with(['studentProfile.user', 'programme', 'intake', 'studentProfile.payments' => function($q) {
+            $q->where('status', 'pending')->where('method', 'bank_transfer');
+        }])
             ->latest()
             ->paginate(20);
 
         return view('admin.applications.index', compact('applications'));
+    }
+
+    public function show(Application $application)
+    {
+        $application->load([
+            'studentProfile.user',
+            'programme',
+            'intake',
+            'studentProfile.documents.requirement',
+            'studentProfile.payments' => function ($query) {
+                $query->where('status', \App\Enums\PaymentStatus::Pending)
+                      ->where('method', 'bank_transfer')
+                      ->whereHas('feeStructure', function ($q) {
+                          $q->where('fee_type', 'application');
+                      });
+            }
+        ]);
+
+        return view('admin.applications.show', compact('application'));
     }
 
     public function review(Request $request, Application $application)

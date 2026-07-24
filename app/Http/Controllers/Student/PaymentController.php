@@ -71,6 +71,7 @@ class PaymentController extends Controller
             'method' => ['required', \Illuminate\Validation\Rule::in($activeMethods)],
             'phone' => ['required_if:method,mpesa', 'nullable', 'string', 'max:20'],
             'bank_reference' => ['required_if:method,bank_transfer', 'nullable', 'string', 'max:100', 'unique:payments,bank_reference'],
+            'receipt' => ['required_if:method,bank_transfer', 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
         $profile = Auth::user()->studentProfile;
@@ -90,6 +91,7 @@ class PaymentController extends Controller
             'amount' => $fee->amount,
             'method' => $data['method'],
             'bank_reference' => $data['bank_reference'] ?? null,
+            'receipt_path' => $request->hasFile('receipt') ? $request->file('receipt')->store('receipts', 'public') : null,
             'status' => PaymentStatus::Pending,
         ]);
 
