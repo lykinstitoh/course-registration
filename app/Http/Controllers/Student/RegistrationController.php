@@ -114,8 +114,9 @@ class RegistrationController extends Controller
             'reference' => 'REG-'.strtoupper(Str::random(8)),
             'student_profile_id' => $profile->id,
             'semester_id' => $semester->id,
-            'status' => RegistrationStatus::Submitted,
+            'status' => RegistrationStatus::Confirmed,
             'submitted_at' => now(),
+            'confirmed_at' => now(),
         ]);
 
         foreach ($data['course_unit_ids'] as $unitId) {
@@ -126,6 +127,6 @@ class RegistrationController extends Controller
         }
 
         return redirect()->route('student.registrations.index')
-            ->with('success', "Registration {$registration->reference} submitted successfully.");
+            ->with('success', "Registration {$registration->reference} confirmed. Your timetable is now available.");
     }
 }

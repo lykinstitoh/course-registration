@@ -12,8 +12,8 @@
                 @foreach($documents as $doc)
                     <tr>
                         <td>{{ $doc->studentProfile->user->name }}</td>
-                        <td>{{ $doc->document_type }}</td>
-                        <td>{{ $doc->original_filename }}</td>
+                        <td>{{ $doc->displayName() }}</td>
+                        <td><a href="{{ route('admin.documents.download', $doc) }}" target="_blank">{{ $doc->original_filename }}</a></td>
                         <td>{{ $doc->status->label() }}</td>
                         <td>{{ $doc->audits->count() }}</td>
                         <td>

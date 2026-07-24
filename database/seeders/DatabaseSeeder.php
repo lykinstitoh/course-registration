@@ -141,7 +141,8 @@ class DatabaseSeeder extends Seeder
             // Payment
             ['group' => 'payment', 'key' => 'enable_mpesa', 'value' => '1', 'type' => 'boolean'],
             ['group' => 'payment', 'key' => 'enable_bank_transfer', 'value' => '1', 'type' => 'boolean'],
-            ['group' => 'fees', 'key' => 'min_tuition_percentage', 'value' => '100', 'type' => 'integer'],
+            // Kenyan private colleges commonly clear registration at ~50% tuition deposit
+            ['group' => 'fees', 'key' => 'min_tuition_percentage', 'value' => '50', 'type' => 'integer'],
             ['group' => 'payment', 'key' => 'bank_name', 'value' => 'Equity Bank', 'type' => 'string'],
             ['group' => 'payment', 'key' => 'bank_account_name', 'value' => 'OCRS University', 'type' => 'string'],
             ['group' => 'payment', 'key' => 'bank_account_number', 'value' => '0123456789', 'type' => 'string'],
@@ -150,6 +151,49 @@ class DatabaseSeeder extends Seeder
 
         foreach ($settings as $setting) {
             \App\Models\SystemSetting::create($setting);
+        }
+
+        // Standard Kenyan direct-admission document checklist
+        $documentRequirements = [
+            [
+                'name' => 'KCSE Certificate / Result Slip',
+                'code' => 'kcse_certificate',
+                'is_required' => true,
+                'allowed_extensions' => 'pdf,jpg,jpeg,png',
+                'max_size_kb' => 5120,
+            ],
+            [
+                'name' => 'National ID / Passport',
+                'code' => 'national_id',
+                'is_required' => true,
+                'allowed_extensions' => 'pdf,jpg,jpeg,png',
+                'max_size_kb' => 5120,
+            ],
+            [
+                'name' => 'Passport-size Photo',
+                'code' => 'passport_photo',
+                'is_required' => true,
+                'allowed_extensions' => 'jpg,jpeg,png',
+                'max_size_kb' => 2048,
+            ],
+            [
+                'name' => 'Birth Certificate (alternative ID for applicants without National ID)',
+                'code' => 'birth_certificate',
+                'is_required' => false,
+                'allowed_extensions' => 'pdf,jpg,jpeg,png',
+                'max_size_kb' => 5120,
+            ],
+            [
+                'name' => 'Degree / Diploma Certificate (postgraduate / credit transfer)',
+                'code' => 'degree_certificate',
+                'is_required' => false,
+                'allowed_extensions' => 'pdf,jpg,jpeg,png',
+                'max_size_kb' => 5120,
+            ],
+        ];
+
+        foreach ($documentRequirements as $requirement) {
+            \App\Models\DocumentRequirement::create($requirement);
         }
     }
 }

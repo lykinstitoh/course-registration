@@ -41,9 +41,21 @@ class Document extends Model
         return $this->belongsTo(Application::class);
     }
 
+    public function requirement(): BelongsTo
+    {
+        return $this->belongsTo(DocumentRequirement::class, 'document_type', 'code');
+    }
+
     public function verifier(): BelongsTo
     {
         return $this->belongsTo(User::class, 'verified_by');
+    }
+
+    public function displayName(): string
+    {
+        return $this->requirement?->name
+            ?? config('ocrs.document_types.'.$this->document_type)
+            ?? str_replace('_', ' ', ucfirst($this->document_type));
     }
 
     public function audits(): HasMany

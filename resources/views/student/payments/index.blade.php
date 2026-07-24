@@ -13,7 +13,11 @@
                     <form method="POST" action="{{ route('student.payments.initiate') }}" enctype="multipart/form-data" style="border-bottom:1px solid var(--border);padding:1rem 0;">
                         @csrf
                         <input type="hidden" name="fee_structure_id" value="{{ $fee->id }}">
-                        <p><strong>{{ $fee->description }}</strong> — KES {{ number_format($fee->amount) }}</p>
+                        <p>
+                            <strong>{{ $fee->description }}</strong> 
+                            @if($fee->application_context) <span style="color:#6b7280; font-size:0.9em;">({{ $fee->application_context }})</span> @endif
+                            — KES {{ number_format($fee->amount) }}
+                        </p>
                         <div>
                             <select name="method" required onchange="togglePhone(this)" style="margin-bottom:.5rem;">
                                 <option value="">-- Select Payment Method --</option>

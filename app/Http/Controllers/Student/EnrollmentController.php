@@ -29,7 +29,7 @@ class EnrollmentController extends Controller
         $documentsVerified = $profile->hasAllRequiredDocumentsVerified();
 
         $tuitionFee = $profile->getRequiredTuitionAmount();
-        $minPercentage = SystemSetting::getValue('min_tuition_percentage', 100);
+        $minPercentage = SystemSetting::getValue('min_tuition_percentage', 50);
         $requiredDeposit = $tuitionFee * ($minPercentage / 100);
         $paidTuition = $profile->getPaidTuitionAmount();
         

@@ -24,18 +24,40 @@ class PaymentController extends Controller
         $profile = Auth::user()->studentProfile;
         $payments = $profile->payments()->with('feeStructure')->latest()->get();
 
-        $approvedApp = $profile->applications()->where('status', 'approved')->first();
-        $pendingApp = $profile->applications()->where('status', 'pending_fee')->first();
+        $activeApps = $profile->applications()
+            ->with('programme')
+            ->whereIn('status', ['approved', 'pending_fee'])
+            ->get();
         
         $fees = collect();
 
-        if ($approvedApp) {
-            $fees = $fees->merge($this->getApplicableFees($approvedApp));
+        foreach ($activeApps as $app) {
+            $appFees = collect();
+            if ($app->status === \App\Enums\ApplicationStatus::Approved) {
+                $appFees = $this->getApplicableFees($app);
+            } elseif ($app->status === \App\Enums\ApplicationStatus::PendingFee) {
+                $appFees = $this->getApplicableFees($app, 'application');
+            }
+
+            foreach ($appFees as $fee) {
+                // Attach the programme context so the UI can differentiate multiple applications
+                $fee->application_context = $app->programme->name;
+                
+                // Avoid duplicating the exact same fee structure in the collection
+                if (!$fees->contains('id', $fee->id)) {
+                    $fees->push($fee);
+                }
+            }
         }
 
-        if ($pendingApp) {
-            $fees = $fees->merge($this->getApplicableFees($pendingApp, 'application'));
-        }
+        // Prevent double payments: filter out fees that are already Completed or Pending
+        $activePaymentFeeIds = $payments->whereIn('status', [\App\Enums\PaymentStatus::Completed, \App\Enums\PaymentStatus::Pending])
+                                        ->pluck('fee_structure_id')
+                                        ->toArray();
+                                        
+        $fees = $fees->reject(function ($fee) use ($activePaymentFeeIds) {
+            return in_array($fee->id, $activePaymentFeeIds);
+        });
 
         // Ensure bank details exist in settings
         if (!\App\Models\SystemSetting::where('key', 'bank_name')->exists()) {
@@ -75,13 +97,38 @@ class PaymentController extends Controller
         ]);
 
         $profile = Auth::user()->studentProfile;
-        $application = $profile->applications()->whereIn('status', ['approved', 'pending_fee'])->firstOrFail();
         $fee = FeeStructure::whereKey($data['fee_structure_id'])->firstOrFail();
-        
-        // Ensure the fee is applicable to the student
-        $applicableFees = $this->getApplicableFees($application);
-        if (!$applicableFees->contains('id', $fee->id)) {
+
+        // Resolve the application this fee belongs to (supports concurrent pending_fee + approved apps)
+        $applications = $profile->applications()
+            ->with('programme')
+            ->whereIn('status', ['approved', 'pending_fee'])
+            ->get();
+
+        $matchedApp = null;
+        $applicableFees = collect();
+        foreach ($applications as $app) {
+            $feeType = $app->status === \App\Enums\ApplicationStatus::PendingFee ? 'application' : null;
+            $feesForApp = $this->getApplicableFees($app, $feeType);
+            if ($feesForApp->contains('id', $fee->id)) {
+                $matchedApp = $app;
+                $applicableFees = $feesForApp;
+                break;
+            }
+        }
+
+        if (! $matchedApp) {
             abort(403, 'This fee structure does not apply to your application.');
+        }
+
+        // Prevent duplicate pending/completed payments for the same fee
+        $alreadyActive = Payment::where('student_profile_id', $profile->id)
+            ->where('fee_structure_id', $fee->id)
+            ->whereIn('status', [PaymentStatus::Completed, PaymentStatus::Pending, PaymentStatus::Processing])
+            ->exists();
+
+        if ($alreadyActive) {
+            return back()->with('error', 'You already have an active or completed payment for this fee.');
         }
 
         $payment = Payment::create([

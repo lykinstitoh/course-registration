@@ -6,7 +6,7 @@
     @include('partials.student-sidebar', ['active' => 'enrollment'])
     <div>
         <h1 style="color:var(--primary);margin-bottom:1rem;">Enrollment Checklist</h1>
-        <p>Complete the following steps to finalize your enrollment and unlock course registration.</p>
+        <p>Document verification and tuition deposit run <strong>in parallel</strong>. Complete both to unlock course registration ({{ $minPercentage }}% tuition deposit required).</p>
 
         <div class="card" style="margin-top: 2rem;">
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">

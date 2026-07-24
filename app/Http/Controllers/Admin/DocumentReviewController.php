@@ -36,4 +36,14 @@ class DocumentReviewController extends Controller
 
         return back()->with('success', 'Document review recorded with full audit trail.');
     }
+
+    public function download(Document $document)
+    {
+        $path = $this->documentService->getSecurePath($document);
+        if (! $path) {
+            return back()->with('error', 'Document file not found.');
+        }
+
+        return response()->download($path, $document->original_filename);
+    }
 }

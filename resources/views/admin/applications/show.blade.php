@@ -16,8 +16,8 @@
                 <p><strong>Name:</strong> {{ $application->studentProfile->user->name }}</p>
                 <p><strong>Phone:</strong> {{ $application->studentProfile->user->phone }}</p>
                 <p><strong>Email:</strong> {{ $application->studentProfile->user->email }}</p>
-                <p><strong>ID/Passport:</strong> {{ $application->studentProfile->national_id }}</p>
-                <p><strong>DOB:</strong> {{ $application->studentProfile->date_of_birth ?? 'N/A' }}</p>
+                <p><strong>ID / Birth Cert No.:</strong> {{ $application->studentProfile->national_id }}</p>
+                <p><strong>DOB:</strong> {{ $application->studentProfile->date_of_birth?->format('d M Y') ?? 'N/A' }}</p>
                 <p><strong>Gender:</strong> {{ $application->studentProfile->gender ?? 'N/A' }}</p>
                 <p><strong>County:</strong> {{ $application->studentProfile->county }}</p>
                 <p><strong>Next of Kin:</strong> {{ $application->studentProfile->next_of_kin_name }} ({{ $application->studentProfile->next_of_kin_phone }})</p>
@@ -26,6 +26,7 @@
                 <h4 style="margin-bottom:.5rem;">Academic Details</h4>
                 <p><strong>Programme:</strong> {{ $application->programme->name }}</p>
                 <p><strong>Intake:</strong> {{ $application->intake->name }}</p>
+                <p><strong>Campus:</strong> {{ $application->campus?->name ?? 'N/A' }}</p>
                 <p><strong>KCSE Index:</strong> {{ $application->studentProfile->kcse_index_number }}</p>
                 <p><strong>KCSE Year:</strong> {{ $application->studentProfile->kcse_year }}</p>
                 <p><strong>KCSE Grade:</strong> {{ $application->studentProfile->kcse_mean_grade }}</p>
@@ -38,9 +39,12 @@
             <h4 style="margin-bottom:.5rem;">Uploaded Documents</h4>
             <ul style="list-style:none; padding:0;">
                 @foreach($application->studentProfile->documents as $doc)
-                    <li style="margin-bottom:.5rem; padding:.5rem; background:var(--surface); border:1px solid var(--border); border-radius:4px; display:flex; justify-content:space-between;">
-                        <span>{{ $doc->requirement->name ?? 'Document' }}</span>
-                        <a href="{{ Storage::url($doc->file_path) }}" target="_blank" style="color:var(--primary);">View</a>
+                    <li style="margin-bottom:.5rem; padding:.5rem; background:var(--surface); border:1px solid var(--border); border-radius:4px; display:flex; justify-content:space-between; align-items:center; gap:1rem;">
+                        <span>
+                            {{ $doc->displayName() }}
+                            <span class="badge" style="margin-left:.5rem;">{{ $doc->status->label() }}</span>
+                        </span>
+                        <a href="{{ route('admin.documents.download', $doc) }}" target="_blank" style="color:var(--primary);">Download</a>
                     </li>
                 @endforeach
             </ul>
@@ -77,12 +81,19 @@
         </div>
         @endif
 
-        @if(in_array($application->status->value, ['submitted', 'under_review']))
-        <div style="padding-top:1rem; border-top:1px solid var(--border); display:flex; gap:1rem;">
+        @if(in_array($application->status->value, ['submitted', 'under_review', 'more_info_required', 'waitlisted']))
+        <div style="padding-top:1rem; border-top:1px solid var(--border); display:flex; gap:1rem; flex-wrap:wrap;">
             <form method="POST" action="{{ route('admin.applications.review', $application) }}">
                 @csrf
                 <input type="hidden" name="action" value="approve">
-                <button class="btn btn-primary" type="submit" onclick="return confirm('Approve this application?');">Approve Application</button>
+                <button class="btn btn-primary" type="submit" onclick="return confirm('Approve this application and issue an admission letter?');">Approve</button>
+            </form>
+
+            <form method="POST" action="{{ route('admin.applications.review', $application) }}" onsubmit="return handleAction(this, 'more information', true);">
+                @csrf
+                <input type="hidden" name="action" value="more_info">
+                <input type="hidden" name="rejection_reason" class="reason-input">
+                <button class="btn btn-outline" type="submit">Request More Info</button>
             </form>
             
             <form method="POST" action="{{ route('admin.applications.review', $application) }}" onsubmit="return handleAction(this, 'waitlist');">
@@ -96,7 +107,7 @@
                 @csrf
                 <input type="hidden" name="action" value="reject">
                 <input type="hidden" name="rejection_reason" class="reason-input">
-                <button class="btn btn-outline" style="color:var(--danger); border-color:var(--danger);" type="submit">Reject Application</button>
+                <button class="btn btn-outline" style="color:var(--danger); border-color:var(--danger);" type="submit">Reject</button>
             </form>
         </div>
         @endif
@@ -109,7 +120,7 @@ function handleAction(form, actionType, requireReason = false) {
     if (requireReason && !reason) {
         return false;
     }
-    if (actionType === 'reject') {
+    if (actionType === 'reject' || actionType === 'more information') {
         form.querySelector('.reason-input').value = reason || '';
     } else {
         form.querySelector('.notes-input').value = reason || '';
