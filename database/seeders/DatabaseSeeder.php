@@ -83,13 +83,30 @@ class DatabaseSeeder extends Seeder
         }
 
         $cs = Programme::where('code', 'BSC-CS')->first();
+        $bba = Programme::where('code', 'BBA')->first();
+        $dip = Programme::where('code', 'DIP-IT')->first();
+
+        $cs101 = CourseUnit::where('code', 'CS101')->first();
+        $cs102 = CourseUnit::where('code', 'CS102')->first();
+        $bus101 = CourseUnit::where('code', 'BUS101')->first();
+        $math101 = CourseUnit::where('code', 'MATH101')->first();
+
+        // Attach semester-1 (and CS progression) units so every programme can register after enrollment
         $cs->courseUnits()->attach([
-            1 => ['is_core' => true],
-            2 => ['is_core' => true],
-            4 => ['is_core' => true],
+            $cs101->id => ['is_core' => true],
+            $cs102->id => ['is_core' => true],
+            $math101->id => ['is_core' => true],
+        ]);
+        $bba->courseUnits()->attach([
+            $bus101->id => ['is_core' => true],
+            $math101->id => ['is_core' => true],
+        ]);
+        $dip->courseUnits()->attach([
+            $cs101->id => ['is_core' => true],
+            $math101->id => ['is_core' => true],
         ]);
 
-        CourseUnit::find(2)->prerequisites()->attach(1);
+        $cs102->prerequisites()->attach($cs101->id);
 
         foreach (Programme::all() as $programme) {
             FeeStructure::create([
@@ -110,42 +127,18 @@ class DatabaseSeeder extends Seeder
             ]);
         }
 
-        TimetableEntry::create([
-            'course_unit_id' => 1,
-            'semester_id' => $semester->id,
-            'day_of_week' => 'Monday',
-            'starts_at' => '08:00',
-            'ends_at' => '10:00',
-            'venue' => 'Lab 1',
-            'lecturer' => 'Dr. Wanjiku Kamau',
-        ]);
-        TimetableEntry::create([
-            'course_unit_id' => 4,
-            'semester_id' => $semester->id,
-            'day_of_week' => 'Tuesday',
-            'starts_at' => '10:00',
-            'ends_at' => '12:00',
-            'venue' => 'LT 2',
-            'lecturer' => 'Prof. Otieno Ochieng',
-        ]);
-        TimetableEntry::create([
-            'course_unit_id' => 3,
-            'semester_id' => $semester->id,
-            'day_of_week' => 'Wednesday',
-            'starts_at' => '14:00',
-            'ends_at' => '16:00',
-            'venue' => 'LT 1',
-            'lecturer' => 'Ms. Amina Hassan',
-        ]);
-        TimetableEntry::create([
-            'course_unit_id' => 1,
-            'semester_id' => $semester->id,
-            'day_of_week' => 'Thursday',
-            'starts_at' => '08:00',
-            'ends_at' => '10:00',
-            'venue' => 'Lab 1',
-            'lecturer' => 'Dr. Wanjiku Kamau',
-        ]);
+        // Sample weekly slots for every linked semester-1 unit (and CS101 repeat tutorial)
+        $timetable = [
+            ['course_unit_id' => $cs101->id, 'day_of_week' => 'Monday', 'starts_at' => '08:00', 'ends_at' => '10:00', 'venue' => 'Lab 1', 'lecturer' => 'Dr. Wanjiku Kamau'],
+            ['course_unit_id' => $math101->id, 'day_of_week' => 'Tuesday', 'starts_at' => '10:00', 'ends_at' => '12:00', 'venue' => 'LT 2', 'lecturer' => 'Prof. Otieno Ochieng'],
+            ['course_unit_id' => $bus101->id, 'day_of_week' => 'Wednesday', 'starts_at' => '14:00', 'ends_at' => '16:00', 'venue' => 'LT 1', 'lecturer' => 'Ms. Amina Hassan'],
+            ['course_unit_id' => $cs101->id, 'day_of_week' => 'Thursday', 'starts_at' => '08:00', 'ends_at' => '10:00', 'venue' => 'Lab 1', 'lecturer' => 'Dr. Wanjiku Kamau'],
+            ['course_unit_id' => $cs102->id, 'day_of_week' => 'Friday', 'starts_at' => '09:00', 'ends_at' => '11:00', 'venue' => 'Lab 2', 'lecturer' => 'Mr. Daniel Mutiso'],
+        ];
+
+        foreach ($timetable as $slot) {
+            TimetableEntry::create($slot + ['semester_id' => $semester->id]);
+        }
 
         \App\Models\Campus::create(['name' => 'Main Campus - Nairobi', 'code' => 'MC-NBI', 'location' => 'Nairobi CBD', 'is_active' => true]);
         \App\Models\Campus::create(['name' => 'Mombasa City Campus', 'code' => 'MSA-CC', 'location' => 'Mombasa Island', 'is_active' => true]);
