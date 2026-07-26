@@ -85,7 +85,7 @@
 
     <footer class="footer">
         &copy; {{ date('Y') }} {{ config('ocrs.institution_name') }} — Online Course Registration System.
-        Compliant with Kenya Data Protection Act 2019.
+        Compliant with Kenya Data Protection Act 2010.
     </footer>
 </body>
 </html>
