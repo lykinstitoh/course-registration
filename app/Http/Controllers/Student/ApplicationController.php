@@ -10,9 +10,12 @@ use App\Models\Intake;
 use App\Models\Payment;
 use App\Models\Programme;
 use App\Models\SystemSetting;
+use App\Rules\KenyanIdentityNumber;
+use App\Rules\KenyanPhoneNumber;
 use App\Services\AcademicRules\AcademicRulesEngine;
 use App\Services\Documents\DocumentService;
 use App\Services\Notifications\NotificationService;
+use App\Support\AdmissionAge;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -59,19 +62,40 @@ class ApplicationController extends Controller
             ->get();
         $campuses = \App\Models\Campus::where('is_active', true)->orderBy('name')->get();
 
-        $latestKcseYear = now()->month >= 11 ? now()->year : now()->year - 1;
-        $kcseYears = range($latestKcseYear, 1989);
+        $kcseYears = AdmissionAge::kcseYearOptions();
         $counties = self::KENYAN_COUNTIES;
         $profile = Auth::user()->studentProfile;
         $missingDocuments = $profile->getMissingRequiredDocuments();
-        $optionalDocuments = \App\Models\DocumentRequirement::where('is_required', false)->get()
-            ->filter(fn ($req) => ! $profile->documents()
-                ->where('document_type', $req->code)
-                ->whereIn('status', [\App\Enums\DocumentStatus::Pending, \App\Enums\DocumentStatus::Verified])
-                ->exists());
+        $optionalDocuments = $profile->getOptionalDocumentRequirements();
+
+        $minAge = (int) config('ocrs.admission.min_age_years', 16);
+        $maxAge = AdmissionAge::maximumAgeYears();
+        $dobMax = AdmissionAge::youngestAllowedDob($minAge)->toDateString();
+        $dobMin = AdmissionAge::oldestAllowedDob($maxAge)->toDateString();
+        $kcseIndexMin = (int) config('ocrs.admission.kcse_index_min_digits', 10);
+        $kcseIndexMax = (int) config('ocrs.admission.kcse_index_max_digits', 12);
+        $degreeMinAge = (int) config('ocrs.admission.min_age_degree_years', 17);
+        $adultAgeThreshold = $profile->adultAgeThreshold();
+        $identityDocumentCode = $profile->requiredIdentityDocumentCode();
 
         return view('student.applications.create', compact(
-            'programmes', 'intakes', 'campuses', 'kcseYears', 'counties', 'missingDocuments', 'optionalDocuments', 'profile'
+            'programmes',
+            'intakes',
+            'campuses',
+            'kcseYears',
+            'counties',
+            'missingDocuments',
+            'optionalDocuments',
+            'profile',
+            'dobMin',
+            'dobMax',
+            'minAge',
+            'degreeMinAge',
+            'maxAge',
+            'kcseIndexMin',
+            'kcseIndexMax',
+            'adultAgeThreshold',
+            'identityDocumentCode'
         ));
     }
 
@@ -79,39 +103,93 @@ class ApplicationController extends Controller
     {
         $isDraft = $request->input('action') === 'draft';
         $profile = Auth::user()->studentProfile;
+        $indexMin = (int) config('ocrs.admission.kcse_index_min_digits', 10);
+        $indexMax = (int) config('ocrs.admission.kcse_index_max_digits', 12);
+        $minAgeFloor = (int) config('ocrs.admission.min_age_years', 16);
+        $maxAge = AdmissionAge::maximumAgeYears();
 
-        // Drafts still need programme + intake (schema FKs); other fields stay soft
         $rules = [
             'programme_id' => ['required', 'exists:programmes,id'],
             'intake_id' => ['required', 'exists:intakes,id'],
             'campus_id' => ['nullable', 'exists:campuses,id'],
             'kcse_mean_grade' => [$isDraft ? 'nullable' : 'required', 'numeric', 'min:1', 'max:12'],
-            'kcse_index_number' => [$isDraft ? 'nullable' : 'required', 'string', 'max:30', 'regex:/^\d+$/'],
-            'kcse_year' => [$isDraft ? 'nullable' : 'required', 'integer', Rule::in(range(now()->month >= 11 ? now()->year : now()->year - 1, 1989))],
-            // National ID digits, or birth-certificate / passport style identifiers (Kenyan practice)
-            'national_id' => [$isDraft ? 'nullable' : 'required', 'string', 'max:30', 'regex:/^[A-Za-z0-9\\/\\-]+$/'],
+            'kcse_index_number' => [
+                $isDraft ? 'nullable' : 'required',
+                'string',
+                "regex:/^\d{{$indexMin},{$indexMax}}$/",
+            ],
+            'kcse_year' => [
+                $isDraft ? 'nullable' : 'required',
+                'integer',
+                Rule::in(AdmissionAge::kcseYearOptions()),
+            ],
+            'national_id' => array_values(array_filter([
+                $isDraft ? 'nullable' : 'required',
+                'string',
+                'max:30',
+                $isDraft && blank($request->input('national_id')) ? null : new KenyanIdentityNumber,
+            ])),
             'county' => [$isDraft ? 'nullable' : 'required', Rule::in(self::KENYAN_COUNTIES)],
-            'date_of_birth' => ['nullable', 'date', 'before:today'],
-            'gender' => ['nullable', 'string', 'in:Male,Female,Other'],
+            'date_of_birth' => [
+                $isDraft ? 'nullable' : 'required',
+                'date',
+                'before:today',
+                'after_or_equal:'.AdmissionAge::oldestAllowedDob($maxAge)->toDateString(),
+                'before_or_equal:'.AdmissionAge::youngestAllowedDob($minAgeFloor)->toDateString(),
+            ],
+            'gender' => [$isDraft ? 'nullable' : 'required', 'string', 'in:Male,Female,Other'],
             'next_of_kin_name' => ['nullable', 'string', 'max:255'],
-            'next_of_kin_phone' => ['nullable', 'string', 'max:20'],
-            'employment_details' => ['nullable', 'string'],
+            'next_of_kin_phone' => ['nullable', 'string', 'max:20', new KenyanPhoneNumber],
+            'employment_details' => ['nullable', 'string', 'max:500'],
         ];
 
         $missingDocuments = $profile->getMissingRequiredDocuments();
         foreach ($missingDocuments as $doc) {
-            // Non-blocking: documents encouraged on submit, but never block draft or fee payment path
             $rules["documents.{$doc->code}"] = ['nullable', 'file', 'max:5120', 'mimes:pdf,jpg,jpeg,png'];
         }
 
-        $optionalDocuments = \App\Models\DocumentRequirement::where('is_required', false)->pluck('code');
-        foreach ($optionalDocuments as $code) {
-            $rules["documents.{$code}"] = ['nullable', 'file', 'max:5120', 'mimes:pdf,jpg,jpeg,png'];
+        $optionalDocuments = $profile->getOptionalDocumentRequirements();
+        foreach ($optionalDocuments as $doc) {
+            $rules["documents.{$doc->code}"] = ['nullable', 'file', 'max:5120', 'mimes:pdf,jpg,jpeg,png'];
         }
 
-        $data = $request->validate($rules);
+        // Allow age-appropriate identity upload even when DOB is first provided on this submit
+        foreach (['national_id', 'birth_certificate'] as $identityCode) {
+            $rules["documents.{$identityCode}"] = ['nullable', 'file', 'max:5120', 'mimes:pdf,jpg,jpeg,png'];
+        }
+
+        $messages = [
+            'kcse_index_number.regex' => "KCSE index number must be {$indexMin}–{$indexMax} digits (KNEC index is normally 11 digits).",
+            'kcse_mean_grade.min' => 'KCSE mean grade points must be between 1 (E) and 12 (A).',
+            'kcse_mean_grade.max' => 'KCSE mean grade points must be between 1 (E) and 12 (A).',
+            'date_of_birth.required' => 'Date of birth is required to confirm eligibility for higher education.',
+            'date_of_birth.before_or_equal' => "Applicants must be at least {$minAgeFloor} years old.",
+            'date_of_birth.after_or_equal' => "Please confirm date of birth. Maximum supported applicant age is {$maxAge} years.",
+            'gender.required' => 'Select your gender as it appears on your identification document.',
+        ];
+
+        $data = $request->validate($rules, $messages);
 
         $this->assertIntakeOpen($data['intake_id'], $isDraft);
+
+        $programme = Programme::findOrFail($data['programme_id']);
+
+        if (! empty($data['date_of_birth'])) {
+            AdmissionAge::assertEligible(
+                $data['date_of_birth'],
+                $programme,
+                isset($data['kcse_year']) ? (int) $data['kcse_year'] : null
+            );
+
+            if (! $isDraft && AdmissionAge::requiresGuardian($data['date_of_birth'])) {
+                if (blank($data['next_of_kin_name'] ?? null) || blank($data['next_of_kin_phone'] ?? null)) {
+                    throw ValidationException::withMessages([
+                        'next_of_kin_name' => 'Applicants under 18 must provide a parent or guardian name and phone number.',
+                        'next_of_kin_phone' => 'Applicants under 18 must provide a parent or guardian phone number.',
+                    ]);
+                }
+            }
+        }
 
         $profile->update([
             'kcse_mean_grade' => $data['kcse_mean_grade'] ?? $profile->kcse_mean_grade,
@@ -125,6 +203,9 @@ class ApplicationController extends Controller
             'next_of_kin_phone' => $data['next_of_kin_phone'] ?? $profile->next_of_kin_phone,
             'employment_details' => $data['employment_details'] ?? $profile->employment_details,
         ]);
+
+        $profile->refresh();
+        $this->assertUploadedIdentityDocumentsMatchAge($request, $profile);
 
         if ($isDraft) {
             $application = Application::create([
@@ -142,8 +223,7 @@ class ApplicationController extends Controller
                 ->with('success', 'Application saved as draft. You can continue uploading documents and pay the fee when ready.');
         }
 
-        $programme = Programme::findOrFail($data['programme_id']);
-        $eligibility = $this->rulesEngine->checkKcseEligibility($profile, $programme);
+        $eligibility = $this->rulesEngine->checkKcseEligibility($profile->fresh(), $programme);
 
         if (! $eligibility['eligible']) {
             $application = Application::create([
@@ -273,8 +353,27 @@ class ApplicationController extends Controller
         }
 
         foreach ($request->file('documents') as $code => $file) {
-            if ($file) {
+            if ($file && $profile->canUploadDocumentType($code)) {
                 $this->documentService->upload($profile, $file, $code, $applicationId, Auth::user());
+            }
+        }
+    }
+
+    private function assertUploadedIdentityDocumentsMatchAge(Request $request, $profile): void
+    {
+        if (! $request->hasFile('documents')) {
+            return;
+        }
+
+        foreach ($request->file('documents') as $code => $file) {
+            if (! $file) {
+                continue;
+            }
+
+            if ($error = $profile->identityDocumentUploadError($code)) {
+                throw ValidationException::withMessages([
+                    "documents.{$code}" => $error,
+                ]);
             }
         }
     }

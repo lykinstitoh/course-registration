@@ -91,7 +91,36 @@ class PaymentController extends Controller
 
         $awaitingPaymentId = request('awaiting');
 
+        if ($awaitingPaymentId) {
+            $awaiting = $profile->payments()->whereKey($awaitingPaymentId)->first();
+            if ($awaiting && in_array($awaiting->status, [PaymentStatus::Processing, PaymentStatus::Pending], true)
+                && $awaiting->method !== 'bank_transfer') {
+                return redirect()->route('student.payments.confirm', $awaiting);
+            }
+        }
+
         return view('student.payments.index', compact('payments', 'fees', 'activeMethods', 'settings', 'awaitingPaymentId'));
+    }
+
+    public function confirm(Payment $payment)
+    {
+        $profile = Auth::user()->studentProfile;
+        if ($payment->student_profile_id !== $profile->id) {
+            abort(403);
+        }
+
+        $payment->load('feeStructure');
+
+        // Refresh live STK status before rendering the waiting screen.
+        if ($payment->status === PaymentStatus::Processing && filled($payment->mpesa_checkout_request_id)) {
+            $this->mpesa->queryStkStatus($payment);
+            $payment->refresh();
+        }
+
+        $phone = data_get($payment->gateway_response, 'customer_phone')
+            ?? Auth::user()->phone;
+
+        return view('student.payments.confirm', compact('payment', 'phone'));
     }
 
     public function initiate(Request $request)
@@ -104,7 +133,7 @@ class PaymentController extends Controller
         $data = $request->validate([
             'fee_structure_id' => ['required', 'exists:fee_structures,id'],
             'method' => ['required', \Illuminate\Validation\Rule::in($activeMethods)],
-            'phone' => ['required_if:method,mpesa', 'nullable', 'string', 'max:20'],
+            'phone' => ['required_if:method,mpesa', 'nullable', 'string', 'max:20', new \App\Rules\KenyanPhoneNumber],
             'bank_reference' => ['required_if:method,bank_transfer', 'nullable', 'string', 'max:100', 'unique:payments,bank_reference'],
             'receipt' => ['required_if:method,bank_transfer', 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
@@ -161,8 +190,8 @@ class PaymentController extends Controller
                     // Still within the STK window — ask student to finish or cancel.
                     if (! $this->mpesa->expireIfTimedOut($blocking, 90)) {
                         return redirect()
-                            ->route('student.payments.index', ['awaiting' => $blocking->id])
-                            ->with('warning', 'A payment is already in progress. Complete the M-Pesa prompt on your phone, or cancel it below and try again.');
+                            ->route('student.payments.confirm', $blocking)
+                            ->with('warning', 'A payment is already in progress. Complete the M-Pesa prompt on your phone.');
                     }
                     $blocking->refresh();
                 }
@@ -193,9 +222,16 @@ class PaymentController extends Controller
             $result = $this->mpesa->initiateStkPush($payment, $data['phone']);
 
             if ($result['success']) {
+                $payment->refresh();
+                $payment->update([
+                    'gateway_response' => array_merge($payment->gateway_response ?? [], [
+                        'customer_phone' => $data['phone'],
+                    ]),
+                ]);
+
                 return redirect()
-                    ->route('student.payments.index', ['awaiting' => $payment->id])
-                    ->with('success', ($result['message'] ?? 'STK Push sent.').' Confirm on your phone — this page will refresh the status automatically.');
+                    ->route('student.payments.confirm', $payment)
+                    ->with('success', $result['message'] ?? 'STK Push sent to your phone.');
             }
 
             return back()->with('error', $result['message']);
@@ -226,12 +262,21 @@ class PaymentController extends Controller
                 'message' => $result['message'],
                 'receipt' => $payment->mpesa_receipt,
                 'reference' => $payment->reference,
+                'redirect' => $payment->status === PaymentStatus::Completed
+                    ? route('student.payments.index')
+                    : null,
             ]);
         }
 
+        if ($payment->status === PaymentStatus::Completed) {
+            return redirect()
+                ->route('student.payments.index')
+                ->with('success', $result['message'] ?? 'Payment confirmed.');
+        }
+
         return redirect()
-            ->route('student.payments.index')
-            ->with($result['success'] && $payment->status === PaymentStatus::Completed ? 'success' : 'warning', $result['message']);
+            ->route('student.payments.confirm', $payment)
+            ->with($result['success'] ? 'warning' : 'error', $result['message']);
     }
 
     public function cancel(Payment $payment)

@@ -7,9 +7,9 @@
         <p style="color:var(--muted);font-size:.875rem;margin-bottom:1rem;">For self-sponsored applicants at {{ config('ocrs.institution_name') }}.</p>
         <form method="POST" action="{{ route('register') }}">
             @csrf
-            <div class="form-group"><label>Full Name</label><input type="text" name="name" value="{{ old('name') }}" required></div>
-            <div class="form-group"><label>Email</label><input type="email" name="email" value="{{ old('email') }}" required></div>
-            <div class="form-group"><label>Phone (M-Pesa)</label><input type="text" name="phone" value="{{ old('phone') }}" placeholder="07XX XXX XXX" required></div>
+            <div class="form-group"><label>Full Name</label><input type="text" name="name" value="{{ old('name') }}" required maxlength="255" title="Enter your full legal name"></div>
+            <div class="form-group"><label>Email</label><input type="email" name="email" value="{{ old('email') }}" required maxlength="255"></div>
+            <div class="form-group"><label>Phone (M-Pesa)</label><input type="tel" name="phone" value="{{ old('phone') }}" placeholder="07XX XXX XXX" required maxlength="20" title="Kenyan mobile: 07XX XXX XXX or 2547XXXXXXXX"></div>
             <div class="form-group"><label>Password</label><input type="password" name="password" required></div>
             <div class="form-group"><label>Confirm Password</label><input type="password" name="password_confirmation" required></div>
             <div class="form-group">

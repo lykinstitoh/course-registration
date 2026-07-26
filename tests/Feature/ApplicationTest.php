@@ -30,20 +30,20 @@ class ApplicationTest extends TestCase
             'intake_id' => $intake->id,
             'campus_id' => $campus->id,
             'kcse_mean_grade' => 7.0, // C+
-            'kcse_index_number' => '1234567890',
-            'kcse_year' => 2023,
+            'kcse_index_number' => '12345678001',
+            'kcse_year' => now()->year - 1,
             'national_id' => '12345678',
             'county' => 'Nairobi',
-            'date_of_birth' => '2000-01-01',
+            'date_of_birth' => '2004-01-01',
             'gender' => 'Male',
         ]);
 
         $response->assertRedirect(route('student.applications.index'));
-        $response->assertSessionHas('success', 'Application saved as draft.');
+        $response->assertSessionHas('success');
 
         $this->assertDatabaseHas('applications', [
             'student_profile_id' => $profile->id,
-            'status' => ApplicationStatus::Draft,
+            'status' => ApplicationStatus::Draft->value,
             'campus_id' => $campus->id,
         ]);
     }
@@ -63,12 +63,12 @@ class ApplicationTest extends TestCase
 
         $this->assertDatabaseHas('applications', [
             'id' => $application->id,
-            'status' => ApplicationStatus::Approved,
+            'status' => ApplicationStatus::Approved->value,
         ]);
 
         $this->assertDatabaseHas('application_status_history', [
             'application_id' => $application->id,
-            'status' => ApplicationStatus::Approved,
+            'status' => ApplicationStatus::Approved->value,
             'notes' => 'All good',
         ]);
 

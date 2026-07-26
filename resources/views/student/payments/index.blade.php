@@ -72,6 +72,9 @@
                                     <a href="{{ route('student.payments.receipt', $payment) }}" class="btn btn-sm btn-outline" target="_blank">Download PDF</a>
                                 @elseif(in_array($payment->status->value, ['processing', 'pending'], true) && $payment->method !== 'bank_transfer')
                                     <div style="display:flex; gap:.35rem; flex-wrap:wrap;">
+                                        @if($payment->status->value === 'processing')
+                                            <a href="{{ route('student.payments.confirm', $payment) }}" class="btn btn-sm btn-accent">Open confirmation</a>
+                                        @endif
                                         @if($payment->status->value === 'processing' && $payment->mpesa_checkout_request_id)
                                             <form method="POST" action="{{ route('student.payments.status', $payment) }}" style="display:inline;" class="status-check-form">
                                                 @csrf

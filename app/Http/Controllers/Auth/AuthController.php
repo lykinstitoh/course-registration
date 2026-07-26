@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\StudentProfile;
 use App\Models\User;
+use App\Rules\KenyanPhoneNumber;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rules\Password;
@@ -50,11 +51,14 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'unique:users'],
-            'phone' => ['required', 'string', 'max:20'],
+            'name' => ['required', 'string', 'max:255', 'regex:/^[\pL\s\'\-\.]+$/u'],
+            'email' => ['required', 'email', 'max:255', 'unique:users'],
+            'phone' => ['required', 'string', 'max:20', new KenyanPhoneNumber],
             'password' => ['required', 'confirmed', Password::defaults()],
             'consent_data_processing' => ['accepted'],
+        ], [
+            'name.regex' => 'Enter your full name using letters only.',
+            'phone.required' => 'A Kenyan mobile number is required for M-Pesa and SMS alerts.',
         ]);
 
         $hasEmail = !empty(env('MAIL_HOST')) && env('MAIL_HOST') !== '127.0.0.1';

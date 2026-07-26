@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
-use App\Models\DocumentRequirement;
 use App\Models\SystemSetting;
 use Illuminate\Support\Facades\Auth;
 
@@ -23,8 +22,10 @@ class EnrollmentController extends Controller
             return redirect()->route('student.dashboard')->with('error', 'You must have an approved application to enroll.');
         }
 
-        $requiredDocs = DocumentRequirement::where('is_required', true)->get();
+        $requiredDocs = $profile->getRequiredDocumentRequirements();
         $studentDocs = $profile->documents()->get()->keyBy('document_type');
+        $identityCode = $profile->requiredIdentityDocumentCode();
+        $adultAgeThreshold = $profile->adultAgeThreshold();
         
         $documentsVerified = $profile->hasAllRequiredDocumentsVerified();
 
@@ -47,7 +48,9 @@ class EnrollmentController extends Controller
             'requiredDeposit',
             'paidTuition',
             'feePaid',
-            'isEnrolled'
+            'isEnrolled',
+            'identityCode',
+            'adultAgeThreshold'
         ));
     }
 }

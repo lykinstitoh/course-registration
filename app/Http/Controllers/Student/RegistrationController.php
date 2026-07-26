@@ -124,6 +124,17 @@ class RegistrationController extends Controller
                 'registration_id' => $registration->id,
                 'course_unit_id' => $unitId,
             ]);
+
+            \App\Models\Result::firstOrCreate(
+                [
+                    'student_profile_id' => $profile->id,
+                    'course_unit_id' => $unitId,
+                    'semester_id' => $semester->id,
+                ],
+                [
+                    'status' => \App\Enums\ResultStatus::Pending,
+                ]
+            );
         }
 
         return redirect()->route('student.registrations.index')

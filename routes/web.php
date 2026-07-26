@@ -47,6 +47,7 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
     Route::post('/registrations', [RegistrationController::class, 'store'])->name('registrations.store');
     Route::get('/payments', [PaymentController::class, 'index'])->name('payments.index');
     Route::post('/payments/initiate', [PaymentController::class, 'initiate'])->name('payments.initiate');
+    Route::get('/payments/{payment}/confirm', [PaymentController::class, 'confirm'])->name('payments.confirm');
     Route::post('/payments/{payment}/status', [PaymentController::class, 'status'])->name('payments.status');
     Route::post('/payments/{payment}/cancel', [PaymentController::class, 'cancel'])->name('payments.cancel');
     Route::get('/payments/{payment}/receipt', [PaymentController::class, 'receipt'])->name('payments.receipt');
@@ -77,6 +78,20 @@ Route::middleware(['auth', 'role:registrar,finance,academic_staff,admin'])->pref
     
     Route::resource('campuses', \App\Http\Controllers\Admin\CampusController::class);
     Route::resource('course-units', \App\Http\Controllers\Admin\CourseUnitController::class)->except(['show']);
+
+    Route::get('/timetable', [\App\Http\Controllers\Admin\TimetableController::class, 'index'])->name('timetable.index');
+    Route::get('/timetable/create', [\App\Http\Controllers\Admin\TimetableController::class, 'create'])->name('timetable.create');
+    Route::post('/timetable', [\App\Http\Controllers\Admin\TimetableController::class, 'store'])->name('timetable.store');
+    Route::get('/timetable/{timetable}/edit', [\App\Http\Controllers\Admin\TimetableController::class, 'edit'])->name('timetable.edit');
+    Route::put('/timetable/{timetable}', [\App\Http\Controllers\Admin\TimetableController::class, 'update'])->name('timetable.update');
+    Route::delete('/timetable/{timetable}', [\App\Http\Controllers\Admin\TimetableController::class, 'destroy'])->name('timetable.destroy');
+
+    Route::get('/results', [\App\Http\Controllers\Admin\ResultController::class, 'index'])->name('results.index');
+    Route::post('/results/generate', [\App\Http\Controllers\Admin\ResultController::class, 'generate'])->name('results.generate');
+    Route::post('/results/publish', [\App\Http\Controllers\Admin\ResultController::class, 'publish'])->name('results.publish');
+    Route::post('/results/bulk', [\App\Http\Controllers\Admin\ResultController::class, 'bulkStore'])->name('results.bulk');
+    Route::get('/results/{result}/edit', [\App\Http\Controllers\Admin\ResultController::class, 'edit'])->name('results.edit');
+    Route::put('/results/{result}', [\App\Http\Controllers\Admin\ResultController::class, 'update'])->name('results.update');
 
     Route::get('/settings', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'index'])->name('settings.index');
     Route::put('/settings', [\App\Http\Controllers\Admin\SystemSettingsController::class, 'update'])->name('settings.update');

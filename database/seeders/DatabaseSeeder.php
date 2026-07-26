@@ -119,6 +119,33 @@ class DatabaseSeeder extends Seeder
             'venue' => 'Lab 1',
             'lecturer' => 'Dr. Wanjiku Kamau',
         ]);
+        TimetableEntry::create([
+            'course_unit_id' => 4,
+            'semester_id' => $semester->id,
+            'day_of_week' => 'Tuesday',
+            'starts_at' => '10:00',
+            'ends_at' => '12:00',
+            'venue' => 'LT 2',
+            'lecturer' => 'Prof. Otieno Ochieng',
+        ]);
+        TimetableEntry::create([
+            'course_unit_id' => 3,
+            'semester_id' => $semester->id,
+            'day_of_week' => 'Wednesday',
+            'starts_at' => '14:00',
+            'ends_at' => '16:00',
+            'venue' => 'LT 1',
+            'lecturer' => 'Ms. Amina Hassan',
+        ]);
+        TimetableEntry::create([
+            'course_unit_id' => 1,
+            'semester_id' => $semester->id,
+            'day_of_week' => 'Thursday',
+            'starts_at' => '08:00',
+            'ends_at' => '10:00',
+            'venue' => 'Lab 1',
+            'lecturer' => 'Dr. Wanjiku Kamau',
+        ]);
 
         \App\Models\Campus::create(['name' => 'Main Campus - Nairobi', 'code' => 'MC-NBI', 'location' => 'Nairobi CBD', 'is_active' => true]);
         \App\Models\Campus::create(['name' => 'Mombasa City Campus', 'code' => 'MSA-CC', 'location' => 'Mombasa Island', 'is_active' => true]);

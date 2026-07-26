@@ -7,6 +7,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class TimetableEntry extends Model
 {
+    public const DAYS = [
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+        'Sunday',
+    ];
+
     protected $fillable = [
         'course_unit_id',
         'semester_id',
@@ -17,11 +27,6 @@ class TimetableEntry extends Model
         'lecturer',
     ];
 
-    protected function casts(): array
-    {
-        return [];
-    }
-
     public function courseUnit(): BelongsTo
     {
         return $this->belongsTo(CourseUnit::class);
@@ -30,5 +35,17 @@ class TimetableEntry extends Model
     public function semester(): BelongsTo
     {
         return $this->belongsTo(Semester::class);
+    }
+
+    public function timeRange(): string
+    {
+        return substr((string) $this->starts_at, 0, 5).'–'.substr((string) $this->ends_at, 0, 5);
+    }
+
+    public function dayOrder(): int
+    {
+        $index = array_search($this->day_of_week, self::DAYS, true);
+
+        return $index === false ? 99 : $index;
     }
 }

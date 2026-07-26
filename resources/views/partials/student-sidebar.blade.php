@@ -5,6 +5,7 @@
     $hasPendingFee = $profile?->applications()->where('status', 'pending_fee')->exists();
     $isEnrolled = $profile?->isEnrolled() ?? false;
     $hasConfirmedRegistration = $profile?->registrations()->where('status', 'confirmed')->exists();
+    $hasPublishedResults = $profile?->results()->where('status', 'published')->exists();
 @endphp
 <aside class="sidebar">
     <nav>
@@ -24,6 +25,8 @@
         @endif
         @if($hasConfirmedRegistration)
             <a href="{{ route('student.timetable') }}" class="{{ ($active ?? '') === 'timetable' ? 'active' : '' }}">Timetable</a>
+        @endif
+        @if($hasConfirmedRegistration || $hasPublishedResults)
             <a href="{{ route('student.results') }}" class="{{ ($active ?? '') === 'results' ? 'active' : '' }}">Results</a>
         @endif
         @if($isAdmitted || $hasPendingFee || $profile?->payments()->exists())

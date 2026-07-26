@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class StudentProfile extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'user_id',
         'admission_number',
@@ -66,12 +69,102 @@ class StudentProfile extends Model
         return $this->hasMany(Result::class);
     }
 
+    public const IDENTITY_DOCUMENT_CODES = ['national_id', 'birth_certificate'];
+
+    public function adultAgeThreshold(): int
+    {
+        return (int) config('ocrs.admission.guardian_required_under_years', 18);
+    }
+
+    /**
+     * True when DOB is known and applicant is under the adult ID threshold (National ID age).
+     */
+    public function isUnderAdultIdentityAge(): bool
+    {
+        if (! $this->date_of_birth) {
+            return false;
+        }
+
+        return $this->date_of_birth->age < $this->adultAgeThreshold();
+    }
+
+    /**
+     * Age-based identity document: birth certificate under 18, National ID at 18+.
+     * Null when date of birth is not yet on the profile.
+     */
+    public function requiredIdentityDocumentCode(): ?string
+    {
+        if (! $this->date_of_birth) {
+            return null;
+        }
+
+        return $this->isUnderAdultIdentityAge() ? 'birth_certificate' : 'national_id';
+    }
+
+    public function resolveIdentityRequirement(): ?DocumentRequirement
+    {
+        $code = $this->requiredIdentityDocumentCode();
+        if (! $code) {
+            return null;
+        }
+
+        $requirement = DocumentRequirement::where('code', $code)->first();
+        if (! $requirement) {
+            return null;
+        }
+
+        // Present as mandatory for enrollment even if seeded optional (birth certificate).
+        $requirement->is_required = true;
+        if ($code === 'birth_certificate') {
+            $requirement->name = 'Birth Certificate (required under '.$this->adultAgeThreshold().')';
+        } elseif ($code === 'national_id') {
+            $requirement->name = 'National ID / Passport (required at '.$this->adultAgeThreshold().'+)';
+        }
+
+        return $requirement;
+    }
+
+    /**
+     * Mandatory checklist documents for this student (age-adjusted identity).
+     */
+    public function getRequiredDocumentRequirements()
+    {
+        $requirements = DocumentRequirement::where('is_required', true)
+            ->whereNotIn('code', self::IDENTITY_DOCUMENT_CODES)
+            ->orderBy('name')
+            ->get();
+
+        if ($identity = $this->resolveIdentityRequirement()) {
+            $requirements->push($identity);
+        }
+
+        return $requirements->values();
+    }
+
+    /**
+     * Optional uploads excluding the alternate identity document for the student's age.
+     */
+    public function getOptionalDocumentRequirements()
+    {
+        $identityCode = $this->requiredIdentityDocumentCode();
+        $exclude = self::IDENTITY_DOCUMENT_CODES;
+
+        return DocumentRequirement::where('is_required', false)
+            ->whereNotIn('code', $exclude)
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (DocumentRequirement $req) => ! $this->documents()
+                ->where('document_type', $req->code)
+                ->whereIn('status', [\App\Enums\DocumentStatus::Pending, \App\Enums\DocumentStatus::Verified])
+                ->exists())
+            ->values();
+    }
+
     public function getMissingRequiredDocuments()
     {
-        $requiredDocs = \App\Models\DocumentRequirement::where('is_required', true)->get();
         $missing = collect();
 
-        foreach ($requiredDocs as $req) {
+        foreach ($this->getRequiredDocumentRequirements() as $req) {
             $hasDoc = $this->documents()
                 ->where('document_type', $req->code)
                 ->whereIn('status', [\App\Enums\DocumentStatus::Pending, \App\Enums\DocumentStatus::Verified])
@@ -82,48 +175,65 @@ class StudentProfile extends Model
             }
         }
 
-        // National ID requirement satisfied by birth certificate upload (Kenyan under-18 practice)
-        $missing = $missing->reject(function ($req) {
-            if ($req->code !== 'national_id') {
-                return false;
-            }
-
-            return $this->documents()
-                ->where('document_type', 'birth_certificate')
-                ->whereIn('status', [\App\Enums\DocumentStatus::Pending, \App\Enums\DocumentStatus::Verified])
-                ->exists();
-        })->values();
-
-        return $missing;
+        return $missing->values();
     }
 
     public function hasAllRequiredDocumentsVerified(): bool
     {
-        $requiredDocs = \App\Models\DocumentRequirement::where('is_required', true)->get();
+        if (! $this->date_of_birth) {
+            return false;
+        }
 
-        foreach ($requiredDocs as $req) {
-            if ($req->code === 'national_id') {
-                $hasId = $this->documents()
-                    ->whereIn('document_type', ['national_id', 'birth_certificate'])
-                    ->where('status', \App\Enums\DocumentStatus::Verified)
-                    ->exists();
-                if (! $hasId) {
-                    return false;
-                }
-                continue;
-            }
-
-            $doc = $this->documents()
+        foreach ($this->getRequiredDocumentRequirements() as $req) {
+            $verified = $this->documents()
                 ->where('document_type', $req->code)
                 ->where('status', \App\Enums\DocumentStatus::Verified)
-                ->first();
+                ->exists();
 
-            if (! $doc) {
+            if (! $verified) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    /**
+     * Whether this document type may be uploaded given the student's age.
+     */
+    public function canUploadDocumentType(string $code): bool
+    {
+        if (! in_array($code, self::IDENTITY_DOCUMENT_CODES, true)) {
+            return DocumentRequirement::where('code', $code)->exists();
+        }
+
+        $expected = $this->requiredIdentityDocumentCode();
+
+        return $expected !== null && $code === $expected;
+    }
+
+    public function identityDocumentUploadError(string $code): ?string
+    {
+        if (! in_array($code, self::IDENTITY_DOCUMENT_CODES, true)) {
+            return null;
+        }
+
+        if (! $this->date_of_birth) {
+            return 'Save your date of birth on the application form first so we can determine whether you need a National ID or a Birth Certificate.';
+        }
+
+        $expected = $this->requiredIdentityDocumentCode();
+        $threshold = $this->adultAgeThreshold();
+
+        if ($code === $expected) {
+            return null;
+        }
+
+        if ($expected === 'birth_certificate') {
+            return "You are under {$threshold}. Upload a Birth Certificate instead of a National ID.";
+        }
+
+        return "You are {$threshold} or older. Upload a National ID / Passport instead of a Birth Certificate.";
     }
 
     /**
@@ -289,7 +399,11 @@ class StudentProfile extends Model
 
     public function isEnrolled(): bool
     {
-        if (!$this->hasAllRequiredDocumentsVerified()) {
+        if (! $this->applications()->where('status', \App\Enums\ApplicationStatus::Approved)->exists()) {
+            return false;
+        }
+
+        if (! $this->hasAllRequiredDocumentsVerified()) {
             return false;
         }
 

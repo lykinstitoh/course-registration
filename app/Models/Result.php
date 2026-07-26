@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ResultStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -20,6 +21,7 @@ class Result extends Model
     {
         return [
             'marks' => 'decimal:2',
+            'status' => ResultStatus::class,
         ];
     }
 
@@ -36,5 +38,10 @@ class Result extends Model
     public function semester(): BelongsTo
     {
         return $this->belongsTo(Semester::class);
+    }
+
+    public function isPublished(): bool
+    {
+        return $this->status === ResultStatus::Published;
     }
 }

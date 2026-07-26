@@ -8,6 +8,21 @@
         <h1 style="color:var(--primary);margin-bottom:1rem;">Supporting Documents</h1>
         <p style="color:var(--muted);margin-bottom:1rem;">Upload anytime — verification runs in parallel with fee payment and admissions review.</p>
 
+        @if($needsDateOfBirth)
+        <div class="card" style="background:#fff7ed;color:#9a3412;margin-bottom:1rem;">
+            Save your <a href="{{ route('student.applications.create') }}">date of birth on the application form</a> first.
+            Under {{ $adultAgeThreshold }} you must upload a Birth Certificate; at {{ $adultAgeThreshold }}+ you must upload a National ID / Passport.
+        </div>
+        @elseif($identityCode === 'birth_certificate')
+        <div class="card" style="background:#eff6ff;color:#1e40af;margin-bottom:1rem;">
+            Based on your age (under {{ $adultAgeThreshold }}), your required identity document is a <strong>Birth Certificate</strong>.
+        </div>
+        @elseif($identityCode === 'national_id')
+        <div class="card" style="background:#eff6ff;color:#1e40af;margin-bottom:1rem;">
+            Based on your age ({{ $adultAgeThreshold }}+), your required identity document is a <strong>National ID / Passport</strong>.
+        </div>
+        @endif
+
         @if(!empty($documentTypes))
         <div class="card">
             <h3>Upload Document</h3>

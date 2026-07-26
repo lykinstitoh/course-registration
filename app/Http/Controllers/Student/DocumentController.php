@@ -7,6 +7,8 @@ use App\Models\Document;
 use App\Services\Documents\DocumentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class DocumentController extends Controller
 {
@@ -21,7 +23,11 @@ class DocumentController extends Controller
             ->latest()
             ->get();
 
-        $requirements = \App\Models\DocumentRequirement::orderByDesc('is_required')->orderBy('name')->get();
+        $requirements = $profile->getRequiredDocumentRequirements()
+            ->concat($profile->getOptionalDocumentRequirements())
+            ->unique('code')
+            ->values();
+
         $uploadedCodes = $documents
             ->whereIn('status', [\App\Enums\DocumentStatus::Pending, \App\Enums\DocumentStatus::Verified])
             ->pluck('document_type')
@@ -32,19 +38,47 @@ class DocumentController extends Controller
             ->pluck('name', 'code')
             ->toArray();
 
-        return view('student.documents.index', compact('documents', 'documentTypes', 'requirements'));
+        $identityCode = $profile->requiredIdentityDocumentCode();
+        $needsDateOfBirth = blank($profile->date_of_birth);
+        $adultAgeThreshold = $profile->adultAgeThreshold();
+
+        return view('student.documents.index', compact(
+            'documents',
+            'documentTypes',
+            'requirements',
+            'identityCode',
+            'needsDateOfBirth',
+            'adultAgeThreshold'
+        ));
     }
 
     public function store(Request $request)
     {
-        $validCodes = \App\Models\DocumentRequirement::pluck('code')->toArray();
+        $profile = Auth::user()->studentProfile;
+        $allowedCodes = $profile->getRequiredDocumentRequirements()
+            ->concat($profile->getOptionalDocumentRequirements())
+            ->pluck('code')
+            ->unique()
+            ->values()
+            ->all();
 
         $data = $request->validate([
-            'document_type' => ['required', 'string', 'in:'.implode(',', $validCodes)],
+            'document_type' => ['required', 'string', Rule::in($allowedCodes)],
             'file' => ['required', 'file', 'max:5120', 'mimes:pdf,jpg,jpeg,png'],
         ]);
 
-        $profile = Auth::user()->studentProfile;
+        if ($error = $profile->identityDocumentUploadError($data['document_type'])) {
+            throw ValidationException::withMessages([
+                'document_type' => $error,
+            ]);
+        }
+
+        if (! $profile->canUploadDocumentType($data['document_type'])) {
+            throw ValidationException::withMessages([
+                'document_type' => 'This document type is not available for your age profile.',
+            ]);
+        }
+
         $applicationId = $profile->applications()->latest()->value('id');
 
         $this->documentService->upload(

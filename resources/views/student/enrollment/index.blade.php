@@ -22,7 +22,14 @@
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">
                 <div>
                     <h3 style="margin:0;">2. Document Verification</h3>
-                    <p style="margin: 0.5rem 0 0 0; color: #666;">All mandatory documents must be uploaded and verified by an admin.</p>
+                    <p style="margin: 0.5rem 0 0 0; color: #666;">
+                        All mandatory documents must be uploaded and verified by an admin.
+                        @if($identityCode === 'birth_certificate')
+                            Identity document for your age: Birth Certificate (under {{ $adultAgeThreshold }}).
+                        @elseif($identityCode === 'national_id')
+                            Identity document for your age: National ID / Passport ({{ $adultAgeThreshold }}+).
+                        @endif
+                    </p>
                     <ul style="margin-top: 0.5rem; padding-left: 1.5rem; color: #666;">
                         @foreach($requiredDocs as $req)
                             @php
