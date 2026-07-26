@@ -18,7 +18,7 @@
 <section style="background:#171d5e;color:#fff;padding:4rem 0;">
     <div class="container">
         <p style="opacity:.85;font-size:.85rem;margin-bottom:.5rem;">Online Course Registration System</p>
-        <h1 style="font-size:2.5rem;line-height:1.2;margin-bottom:1rem;">Your Journey at {{ $institutionName }} Starts Here</h1>
+        <h1 style="font-size:2.5rem;line-height:1.2;margin-bottom:1rem;">Your Journey at {{ config('ocrs.institution_name') }} Starts Here</h1>
         <p style="max-width:640px;opacity:.9;margin-bottom:1.5rem;">
             Join our vibrant academic community! Apply for your dream programme, easily manage your fee payments, register for classes, and access your timetable and results—all in one place.
         </p>
